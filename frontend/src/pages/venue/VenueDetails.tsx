@@ -41,6 +41,13 @@ const VenueDetails = () => {
   const [pois, setPois] = useState<SportsPOI[]>([]);
   const [userLoc, setUserLoc] = useState<LatLng | null>(null);
   const firstCourt = useMemo(() => (venue?.courts || [])[0] || null, [venue]);
+  const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
+  const currentCourt = useMemo(() => {
+    if (!venue) return null;
+    const list = venue.courts || [];
+    if (selectedCourtId) return list.find(c => c._id === selectedCourtId) || list[0] || null;
+    return list[0] || null;
+  }, [venue, selectedCourtId]);
   const basePrice = useMemo(() => {
     const prices = (venue?.courts || []).map((c: Court) => Number(c.pricePerHour || 0)).filter((n: number) => n > 0);
     return prices.length ? Math.min(...prices) : 500;
@@ -194,17 +201,33 @@ const VenueDetails = () => {
             </CardContent>
           </Card>
 
-          {firstCourt && (
+          {currentCourt && (
             <Card>
               <CardHeader>
-                <CardTitle>Availability & Pricing</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Availability & Pricing</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-2">
+                    <label htmlFor="courtSel" className="hidden sm:inline">Court:</label>
+                    <select
+                      id="courtSel"
+                      className="border border-border/50 rounded px-2 py-1 text-xs bg-background"
+                      value={currentCourt?._id}
+                      onChange={(e) => setSelectedCourtId(e.target.value)}
+                    >
+                      {(venue?.courts || []).map((c) => (
+                        <option key={c._id} value={c._id}>{c.name || c._id}</option>
+                      ))}
+                    </select>
+                  </span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <RushHeatmap
+                  key={`${venue._id}:${currentCourt._id}`}
                   venueId={venue._id}
-                  courtId={firstCourt._id}
-                  basePrice={Number(firstCourt.pricePerHour || basePrice)}
-                  outdoor={Boolean(firstCourt.outdoor)}
+                  courtId={currentCourt._id}
+                  basePrice={Number(currentCourt.pricePerHour || basePrice)}
+                  outdoor={Boolean(currentCourt.outdoor)}
                 />
               </CardContent>
             </Card>
