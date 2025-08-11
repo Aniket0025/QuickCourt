@@ -11,6 +11,7 @@ import { RevenueLab } from '@/components/venue/RevenueLab';
 import { FairSurgeBanner } from '@/components/venue/FairSurgeBanner';
 import OSMMap from '@/components/map/OSMMap';
 import { geocodeNominatim, LatLng, fetchSportsPOIsOverpass, SportsPOI, getUserLocation } from '@/lib/geo';
+import { useAuth } from '@/lib/auth';
 
 const VenueDetails = () => {
   type Court = { _id: string; name?: string; sport?: string; operatingHours?: string; pricePerHour?: number; outdoor?: boolean };
@@ -30,6 +31,8 @@ const VenueDetails = () => {
   };
 
   const { id } = useParams();
+  const { user } = useAuth();
+
   const navigate = useNavigate();
   const [venue, setVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,11 +314,17 @@ const VenueDetails = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm text-muted-foreground">Select a court and time slot on the next page.</div>
-              <Button asChild className="w-full">
-                <Link to={`/venues/${venue._id}/book`}>
-                  Book Now
-                </Link>
-              </Button>
+              {user?.role === 'facility_owner' ? (
+                <Button className="w-full" variant="secondary" disabled title="Booking is disabled for Facility role">
+                  Book Now (Disabled for Facility)
+                </Button>
+              ) : (
+                <Button asChild className="w-full">
+                  <Link to={`/venues/${venue._id}/book`}>
+                    Book Now
+                  </Link>
+                </Button>
+              )}
               <Button className="w-full" variant="secondary" disabled={!firstCourt || computingDeals} onClick={handleAutoBestPrice}>
                 {computingDeals ? 'Finding Best Deals…' : 'Auto Best Price'}
               </Button>

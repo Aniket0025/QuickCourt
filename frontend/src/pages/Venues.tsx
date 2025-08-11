@@ -6,13 +6,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { listVenues, predictRush } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+
+import { listVenues, listMyVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
 import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass } from '@/lib/geo';
 
 export const Venues = () => {
   const location = useLocation();
+  const { user } = useAuth();
+
   type AvailableSlotRaw = { start?: string; end?: string; dateTime?: string };
   type CourtRaw = { _id: string; pricePerHour?: number; outdoor?: boolean; availableSlots?: AvailableSlotRaw[] };
   type VenueRaw = {
@@ -64,7 +68,10 @@ export const Venues = () => {
       try {
         setLoading(true);
         const sport = selectedSport !== 'all' ? selectedSport : undefined;
-        const res = await listVenues(sport ? { sport } : undefined);
+        // Facility owners should only see their own venues
+        const res = user?.role === 'facility_owner'
+          ? await listMyVenues()
+          : await listVenues(sport ? { sport } : undefined);
         const data = (res as any)?.data || [];
         if (!mounted) return;
         setVenues(data);
@@ -78,7 +85,7 @@ export const Venues = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [selectedSport]);
+  }, [selectedSport, user?.role]);
 
   useEffect(() => {
     (async () => {
@@ -308,7 +315,7 @@ export const Venues = () => {
                 <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} />
                 Available only
               </label>
-              <Select value={minRating} onValueChange={setMinRating}>
+              <Select value={minRating} onValueChange={(v) => setMinRating(v as 'all' | '3' | '4')}>
                 <SelectTrigger className="bg-background/50">
                   <SelectValue placeholder="Min rating" />
                 </SelectTrigger>
@@ -439,15 +446,18 @@ export const Venues = () => {
                       </span>
                       <span className="text-sm text-muted-foreground">/hour</span>
                     </div>
-                    <Link to={`/venues/${venue.id}`}>
-                      <Button 
-                        className="btn-bounce bg-primary hover:bg-primary/90"
-                        disabled={!venue.available}
-                      >
-                        <Calendar className="h-4 w-4 mr-2" />
-                        {venue.available ? 'Book Now' : 'Unavailable'}
-                      </Button>
-                    </Link>
+                    {user?.role === 'facility_owner' ? null : (
+                      <Link to={`/venues/${venue.id}`}>
+                        <Button
+                          className="btn-bounce bg-primary hover:bg-primary/90"
+                          disabled={!venue.available}
+                          aria-disabled={!venue.available}
+                        >
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {venue.available ? 'Book Now' : 'Unavailable'}
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -465,7 +475,7 @@ export const Venues = () => {
               user={userLoc || undefined}
               center={customCenter || IITGN}
               height={360}
-              onNavigate={(id)=>navigate(`/venues/${id}`)}
+              onNavigate={user?.role === 'facility_owner' ? undefined : (id)=>navigate(`/venues/${id}`)}
               pois={pois}
               radiusKm={radiusKm}
               poiFilter={poiFilter}

@@ -30,8 +30,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CardHeader, CardTitle } from '@/components/ui/card';
 import Footer from '@/components/layout/Footer';
+import { useAuth } from '@/lib/auth';
 
-export const Home = () => {
+export default function Home() {
+  const { user } = useAuth();
   const [popularSports, setPopularSports] = useState<PopularSport[]>([]);
   const [loadingSports, setLoadingSports] = useState(true);
   const defaultSports: PopularSport[] = [
@@ -242,12 +244,25 @@ export const Home = () => {
             meet players, and elevate your game.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link to="/venues">
-              <Button size="lg" className="btn-bounce neon-glow bg-primary hover:bg-primary/90 text-lg px-8">
+            {user?.role === 'facility_owner' ? (
+              <Button
+                size="lg"
+                className="text-lg px-8"
+                variant="secondary"
+                disabled
+                title="Booking is disabled for Facility role"
+              >
                 <Calendar className="mr-2 h-5 w-5" />
-                Book Now
+                Booking disabled for Facility
               </Button>
-            </Link>
+            ) : (
+              <Link to="/venues">
+                <Button size="lg" className="btn-bounce neon-glow bg-primary hover:bg-primary/90 text-lg px-8">
+                  <Calendar className="mr-2 h-5 w-5" />
+                  Book Now
+                </Button>
+              </Link>
+            )}
             <Link to="/venues">
               <Button
                 size="lg"
@@ -519,12 +534,25 @@ export const Home = () => {
             Join thousands of sports enthusiasts who book their courts with QuickCourt
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
-              <Button size="lg" className="btn-bounce text-lg px-8 bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-white/30">
+            {user?.role === 'facility_owner' ? (
+              <Button
+                size="lg"
+                className="text-lg px-8 bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-white/30"
+              >
                 <Users className="mr-2 h-5 w-5" />
-                Get Started
+                Manage Your Venue
               </Button>
-            </Link>
+            ) : (
+              <Link to="/auth">
+                <Button
+                  size="lg"
+                  className="text-lg px-8 bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-white/30"
+                >
+                  <Users className="mr-2 h-5 w-5" />
+                  Get Started
+                </Button>
+              </Link>
+            )}
             <Link to="/venues">
               <Button
                 size="lg"
@@ -690,6 +718,4 @@ export const Home = () => {
       <Footer />
     </div>
   );
-};
-
-export default Home;
+}
