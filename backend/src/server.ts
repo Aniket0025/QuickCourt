@@ -10,7 +10,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://shreya:shreya123@oddo.
 
 async function bootstrap() {
   await connectDB(MONGO_URI);
-
+//4
   const app = express();
   app.use(cors({ origin: ORIGIN, credentials: true }));
   app.use(express.json());
