@@ -362,190 +362,112 @@ export const Venues = () => {
                         ₹{venue.price}
                       </span>
                       <span className="text-sm text-muted-foreground">/hour</span>
-          {loading ? (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
-          ) : (
-            filteredVenues.map((venue) => (
-              <Card key={venue.id} className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
-                <div className="h-48 bg-muted/50 flex items-center justify-center relative">
-                  {venue.photo ? (
-                    <img
-                      src={venue.photo}
-                      alt={venue.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 w-full h-full bg-muted" />
-                  )}
-                  <div className="absolute inset-0 bg-black/20" />
-                  {venue.rushStatus === 'hot' && (
-                    <div className="absolute top-2 left-2">
-                      <Badge variant="destructive">Hot Now</Badge>
                     </div>
-                  )}
-                  {venue.rushStatus === 'chill' && (
-                    <div className="absolute top-2 left-2">
-                      <Badge variant="secondary">Chill Now</Badge>
-                    </div>
-                  )}
-                  {!venue.available && (
-                    <div className="absolute top-2 right-2">
-                      <Badge variant="destructive">Fully Booked</Badge>
-                    </div>
-                  )}
-                </div>
-
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-xl font-semibold text-foreground line-clamp-1">
-                      {venue.name}
-                    </h3>
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-4 w-4 text-warning fill-current" />
-                      <span className="text-sm font-medium">{venue.rating}</span>
-                    </div>
+                    <Link to={`/venues/${venue.id}`}>
+                      <Button 
+                        className="btn-bounce bg-primary hover:bg-primary/90"
+                        disabled={!venue.available}
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        {venue.available ? 'Book Now' : 'Unavailable'}
+                      </Button>
+                    </Link>
                   </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary">{venue.sport}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {venue.courts} court{venue.courts !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center text-muted-foreground">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      <span className="text-sm line-clamp-1">{venue.location}</span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {venue.amenities.slice(0, 3).map((amenity, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {amenity}
-                        </Badge>
-                      ))}
-                      {venue.amenities.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{venue.amenities.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between items-center pt-4 border-t border-border/50">
-                      <div>
-                        <span className="text-2xl font-bold text-secondary">
-                          ₹{venue.price}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/hour</span>
-                      </div>
-                      <Link to={`/venues/${venue.id}`}>
-                        <Button 
-                          className="btn-bounce bg-primary hover:bg-primary/90"
-                          disabled={!venue.available}
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {venue.available ? 'Book Now' : 'Unavailable'}
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-
-        {/* Map View (moved below grid) */}
-        {!loading && sortedVenues.length > 0 && (
-          <div className="mt-8">
-            <OSMMap
-              venues={sortedVenues.filter(v=> typeof v.lat==='number' && typeof v.lng==='number').map(v=> ({
-                id: v.id,
-                name: v.name,
-                lat: v.lat as number,
-                lng: v.lng as number,
-                price: v.price,
-                rush: v.rushStatus,
-              })) as MapVenue[]}
-              user={userLoc}
-              center={customCenter || undefined}
-              height={360}
-              onNavigate={(id)=>navigate(`/venues/${id}`)}
-              pois={filteredPois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
-            />
-
-            {/* Controls moved below map */}
-            <div className="mt-4 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={nearMe} onChange={(e)=>setNearMe(e.target.checked)} />
-                  Near Me
-                </label>
-                <div className="flex items-center gap-2 text-sm">
-                  <span>{radiusKm} km</span>
-                  <input
-                    type="range"
-                    min={2}
-                    max={25}
-                    step={1}
-                    value={radiusKm}
-                    onChange={(e)=>setRadiusKm(Number(e.target.value))}
-                    className="w-40 cursor-pointer"
-                  />
                 </div>
-                <select
-                  value={poiFilter}
-                  onChange={(e)=>{
-                    const v = e.target.value as 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
-                    setPoiFilter(v);
-                  }}
-                  className="text-sm bg-background/50 border rounded px-2 py-1"
-                  title="Filter public sports places"
-                >
-                  <option value="all">All POIs</option>
-                  <option value="stadium">Stadiums</option>
-                  <option value="sports_centre">Sports centres</option>
-                  <option value="pitch">Pitches</option>
-                  <option value="fitness_centre">Fitness centres</option>
-                  <option value="sport">Other sport-tag</option>
-                </select>
-              </div>
+              </CardContent>
+            </Card>
+          ))}
 
-              {/* Map search / recenter */}
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
-                <input
-                  value={locationQuery}
-                  onChange={(e)=>setLocationQuery(e.target.value)}
-                  placeholder="Search place or paste lat,lng"
-                  className="text-sm bg-background/50 border rounded px-2 py-1 w-full md:w-64"
+            {!loading && sortedVenues.length > 0 && (
+              <div className="mt-8">
+                <OSMMap
+                  venues={sortedVenues.filter(v=> typeof v.lat==='number' && typeof v.lng==='number').map(v=> ({
+                    id: v.id,
+                    name: v.name,
+                    lat: v.lat as number,
+                    lng: v.lng as number,
+                    price: v.price,
+                    rush: v.rushStatus,
+                  })) as MapVenue[]}
+                  user={userLoc}
+                  center={customCenter || undefined}
+                  height={360}
+                  onNavigate={(id)=>navigate(`/venues/${id}`)}
+                  pois={filteredPois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
                 />
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={async ()=>{
-                    const q = locationQuery.trim();
-                    if (!q) return;
-                    const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-                    if (m) {
-                      const lat = Number(m[1]);
-                      const lng = Number(m[2]);
-                      if (isFinite(lat) && isFinite(lng)) { setCustomCenter({ lat, lng }); return; }
-                    }
-                    const ll = await geocodeNominatim(q);
-                    if (ll) setCustomCenter(ll);
-                    else toast('Place not found');
-                  }}>Search</Button>
-                  <Button variant="secondary" onClick={async ()=>{
-                    const loc = await getUserLocation();
-                    if (loc) { setUserLoc(loc); setCustomCenter(loc); }
-                    else toast('Location unavailable');
-                  }}>Use My Location</Button>
-                  <Button variant="ghost" onClick={()=>{ setCustomCenter(null); setLocationQuery(''); }}>Clear</Button>
+
+                {/* Controls moved below map */}
+                <div className="mt-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={nearMe} onChange={(e)=>setNearMe(e.target.checked)} />
+                      Near Me
+                    </label>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span>{radiusKm} km</span>
+                      <input
+                        type="range"
+                        min={2}
+                        max={25}
+                        step={1}
+                        value={radiusKm}
+                        onChange={(e)=>setRadiusKm(Number(e.target.value))}
+                        className="w-40 cursor-pointer"
+                      />
+                    </div>
+                    <select
+                      value={poiFilter}
+                      onChange={(e)=>{
+                        const v = e.target.value as 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
+                        setPoiFilter(v);
+                      }}
+                      className="text-sm bg-background/50 border rounded px-2 py-1"
+                      title="Filter public sports places"
+                    >
+                      <option value="all">All POIs</option>
+                      <option value="stadium">Stadiums</option>
+                      <option value="sports_centre">Sports centres</option>
+                      <option value="pitch">Pitches</option>
+                      <option value="fitness_centre">Fitness centres</option>
+                      <option value="sport">Other sport-tag</option>
+                    </select>
+                  </div>
+
+                  {/* Map search / recenter */}
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
+                    <input
+                      value={locationQuery}
+                      onChange={(e)=>setLocationQuery(e.target.value)}
+                      placeholder="Search place or paste lat,lng"
+                      className="text-sm bg-background/50 border rounded px-2 py-1 w-full md:w-64"
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={async ()=>{
+                        const q = locationQuery.trim();
+                        if (!q) return;
+                        const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                        if (m) {
+                          const lat = Number(m[1]);
+                          const lng = Number(m[2]);
+                          if (isFinite(lat) && isFinite(lng)) { setCustomCenter({ lat, lng }); return; }
+                        }
+                        const ll = await geocodeNominatim(q);
+                        if (ll) setCustomCenter(ll);
+                        else toast('Place not found');
+                      }}>Search</Button>
+                      <Button variant="secondary" onClick={async ()=>{
+                        const loc = await getUserLocation();
+                        if (loc) { setUserLoc(loc); setCustomCenter(loc); }
+                        else toast('Location unavailable');
+                      }}>Use My Location</Button>
+                      <Button variant="ghost" onClick={()=>{ setCustomCenter(null); setLocationQuery(''); }}>Clear</Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
+
+        </div>
 
         {/* No Results */}
         {(!loading && filteredVenues.length === 0) && (
