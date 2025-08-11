@@ -7,6 +7,8 @@ import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { OwnerStatsCards } from './components/OwnerStatsCards';
+import { OwnerBookingActivity } from './components/OwnerBookingActivity';
 
 const FacilityManagement = () => {
   const { user } = useAuth();
@@ -90,6 +92,12 @@ const FacilityManagement = () => {
   return (
     <div className="container mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-6">Facility Management</h1>
+      {!!venueId && (
+        <div className="mb-8 space-y-6">
+          <OwnerStatsCards venueId={venueId} />
+          <OwnerBookingActivity venueId={venueId} />
+        </div>
+      )}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>

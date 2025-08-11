@@ -7,9 +7,12 @@ import { BookingModel } from './models/Booking';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 const ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:8080';
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://shreya:shreya123@oddo.8vdawkj.mongodb.net/?retryWrites=true&w=majority&appName=oddo';
+const MONGO_URI = process.env.MONGO_URI;
 
 async function bootstrap() {
+  if (!MONGO_URI) {
+    throw new Error('MONGO_URI is not set. Please configure backend/.env');
+  }
   await connectDB(MONGO_URI);
 //4
   const app = express();

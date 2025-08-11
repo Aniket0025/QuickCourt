@@ -110,6 +110,28 @@ export async function getAdmin7dStats(): Promise<AdminStats7d> {
   return apiFetch('/api/admin/stats-7d', { method: 'GET' });
 }
 
+// Owner metrics/stats
+export type OwnerMetrics = {
+  activeCourts: number;
+  totalBookings: number;
+  monthEarnings: number;
+};
+
+export async function getOwnerMetrics(venueId: string): Promise<OwnerMetrics> {
+  const q = new URLSearchParams({ venueId }).toString();
+  return apiFetch(`/api/owner/metrics?${q}`, { method: 'GET' });
+}
+
+export type OwnerStats7d = {
+  dayLabels: string[];
+  bookingsPerDay: number[];
+};
+
+export async function getOwner7dStats(venueId: string): Promise<OwnerStats7d> {
+  const q = new URLSearchParams({ venueId }).toString();
+  return apiFetch(`/api/owner/stats-7d?${q}`, { method: 'GET' });
+}
+
 export async function rateBooking(id: string, rating: number) {
   return apiFetch(`/api/bookings/${id}/rate`, {
     method: 'PATCH',
@@ -128,5 +150,50 @@ export async function requestPasswordReset(email: string) {
   return apiFetch('/api/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
+  });
+}
+
+// ML prediction (heuristic) APIs
+export type PredictRushRequest = {
+  venueId: string;
+  courtId: string;
+  dateTime: string; // ISO
+  durationHours?: number;
+  outdoor?: boolean;
+};
+
+export type PredictRushResponse = {
+  rushScore: number; // 0..1
+  factors: { hour: number; dow: number; venueBias: number; courtBias: number; weather: number };
+  durationHours: number;
+};
+
+export async function predictRush(payload: PredictRushRequest): Promise<PredictRushResponse> {
+  return apiFetch('/api/ml/predict-rush', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export type PredictPriceRequest = PredictRushRequest & {
+  basePrice: number;
+  benchmarkPrice?: number;
+  k?: number; // sensitivity
+  cap?: number; // max uplift, e.g., 0.3 => +30%
+};
+
+export type PredictPriceResponse = {
+  suggestedPrice: number;
+  rushScore: number;
+  capApplied: boolean;
+  factors: PredictRushResponse['factors'];
+  basePrice: number;
+  durationHours: number;
+};
+
+export async function predictPrice(payload: PredictPriceRequest): Promise<PredictPriceResponse> {
+  return apiFetch('/api/ml/predict-price', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

@@ -119,6 +119,8 @@ export const Profile = () => {
   const [feedbackBookingId, setFeedbackBookingId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
+
   const now = new Date();
   const filtered = useMemo(
     () => bookings.filter((b) => (filter === 'all' ? true : b.status === filter)),
@@ -432,7 +434,16 @@ export const Profile = () => {
                                   <DropdownMenuItem onClick={() => navigator.clipboard.writeText(b._id)}>
                                     Copy Booking ID
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => { setFeedbackBookingId(b._id); setFeedbackMessage(''); setFeedbackOpen(true); }}>
+                                  <DropdownMenuItem onClick={() => {
+                                    if (b._id.startsWith('demo-')) {
+                                      toast.error('Feedback can only be submitted for real bookings. Please create a booking first.');
+                                      return;
+                                    }
+                                    setFeedbackBookingId(b._id);
+                                    setFeedbackMessage('');
+                                    setFeedbackRating(null);
+                                    setFeedbackOpen(true);
+                                  }}>
                                     Give Feedback
                                   </DropdownMenuItem>
                                   {b.status === 'completed' && !b.rating && (
@@ -497,7 +508,7 @@ export const Profile = () => {
         </Tabs>
       </div>
       {/* Feedback Dialog */}
-      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMessage(''); setFeedbackBookingId(null); } }}>
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMessage(''); setFeedbackBookingId(null); setFeedbackRating(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Share your feedback</DialogTitle>
@@ -505,7 +516,26 @@ export const Profile = () => {
               Tell us about your experience for this booking. This helps us improve.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm">Your Rating (optional)</Label>
+              <div className="flex items-center gap-2">
+                {[1,2,3,4,5].map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`text-2xl ${i <= (feedbackRating ?? 0) ? 'text-yellow-400' : 'text-muted-foreground'}`}
+                    onClick={() => setFeedbackRating(i)}
+                    aria-label={`Rate ${i} star${i>1?'s':''}`}
+                  >
+                    {i <= (feedbackRating ?? 0) ? '★' : '☆'}
+                  </button>
+                ))}
+                {feedbackRating && (
+                  <Button variant="ghost" size="sm" onClick={() => setFeedbackRating(null)} className="ml-2">Clear</Button>
+                )}
+              </div>
+            </div>
             <Label htmlFor="feedback" className="text-sm">Feedback</Label>
             <Textarea id="feedback" value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Type your feedback here..." rows={5} />
           </div>
@@ -513,18 +543,15 @@ export const Profile = () => {
             <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmitting}>Cancel</Button>
             <Button onClick={async () => {
               if (!feedbackBookingId || !feedbackMessage.trim()) { toast.error('Please enter feedback'); return; }
+              if (feedbackBookingId.startsWith('demo-')) { toast.error('Cannot submit feedback for demo booking. Please create a real booking.'); return; }
               try {
                 setFeedbackSubmitting(true);
-                if (feedbackBookingId.startsWith('demo-')) {
-                  // demo-only local handling
-                  toast.success('Feedback submitted (demo)');
-                } else {
-                  await submitFeedback({ bookingId: feedbackBookingId, message: feedbackMessage.trim() });
-                  toast.success('Thanks for your feedback!');
-                }
+                await submitFeedback({ bookingId: feedbackBookingId, message: feedbackMessage.trim(), rating: feedbackRating ?? undefined });
+                toast.success('Thanks for your feedback!');
                 setFeedbackOpen(false);
                 setFeedbackMessage('');
                 setFeedbackBookingId(null);
+                setFeedbackRating(null);
               } catch (e) {
                 console.error(e);
                 toast.error('Failed to submit feedback');
@@ -537,6 +564,7 @@ export const Profile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

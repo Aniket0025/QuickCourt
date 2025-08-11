@@ -3,9 +3,13 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { OwnerStatsCards } from "./components/OwnerStatsCards";
+import { OwnerBookingActivity } from "./components/OwnerBookingActivity";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
+  const [venueId] = useState<string>(() => localStorage.getItem('quickcourt_owner_venue_id') || '');
 
   if (!user) return <Navigate to="/auth" replace />;
   if (user.role !== "facility_owner") {
@@ -27,66 +31,40 @@ const OwnerDashboard = () => {
       </header>
 
       <main className="space-y-6">
-        <section className="grid gap-6 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Active Courts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">12</p>
-              <p className="text-xs text-muted-foreground mt-1">8 Badminton • 2 Tennis • 2 TT</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">1,284</p>
-              <p className="text-xs text-muted-foreground mt-1">+76 this week</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Earnings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">₹ 2,43,560</p>
-              <p className="text-xs text-muted-foreground mt-1">This month · +12% WoW</p>
-            </CardContent>
-          </Card>
-        </section>
+        {venueId ? (
+          <section className="space-y-6">
+            <OwnerStatsCards venueId={venueId} />
+            <OwnerBookingActivity venueId={venueId} />
+          </section>
+        ) : (
+          <section>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">No Venue Selected</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">Create or save your facility to see live metrics.</p>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/owner/facility">Add / Edit Facility</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         <section className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Calendar (This Week)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2 text-center">
-                {[
-                  { d: 'Mon', slots: 18 },
-                  { d: 'Tue', slots: 22 },
-                  { d: 'Wed', slots: 19 },
-                  { d: 'Thu', slots: 25 },
-                  { d: 'Fri', slots: 27 },
-                  { d: 'Sat', slots: 31 },
-                  { d: 'Sun', slots: 24 },
-                ].map((x) => (
-                  <div key={x.d} className="space-y-2">
-                    <div className="h-32 w-full bg-primary/15 rounded-md relative overflow-hidden">
-                      <div
-                        className="absolute bottom-0 left-0 right-0 bg-primary"
-                        style={{ height: `${(x.slots / 35) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">{x.d}</div>
-                    <div className="text-xs font-medium">{x.slots} slots</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {venueId ? (
+            <OwnerBookingActivity venueId={venueId} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Activity (7d)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">Create or save your facility to see bookings.</div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
