@@ -122,7 +122,7 @@ const CourtManagement = () => {
             <Select value={sport} onValueChange={setSport}>
               <SelectTrigger className="bg-background/50"><SelectValue placeholder="Sport Type" /></SelectTrigger>
               <SelectContent>
-                {['Badminton','Table Tennis','Tennis','Basketball','Football','Squash'].map(s => (
+                {['Badminton','Table Tennis','Tennis','Basketball','Football','Squash','Cricket','Hockey','Golf'].map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
