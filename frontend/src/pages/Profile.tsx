@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { cancelBookingApi, listBookings, rateBooking } from '@/lib/api';
+import { submitFeedback } from '@/lib/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 import { 
   User, 
@@ -104,6 +114,11 @@ export const Profile = () => {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [selectedRatings, setSelectedRatings] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  // Feedback dialog state
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackBookingId, setFeedbackBookingId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const now = new Date();
   const filtered = useMemo(
     () => bookings.filter((b) => (filter === 'all' ? true : b.status === filter)),
@@ -417,6 +432,9 @@ export const Profile = () => {
                                   <DropdownMenuItem onClick={() => navigator.clipboard.writeText(b._id)}>
                                     Copy Booking ID
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => { setFeedbackBookingId(b._id); setFeedbackMessage(''); setFeedbackOpen(true); }}>
+                                    Give Feedback
+                                  </DropdownMenuItem>
                                   {b.status === 'completed' && !b.rating && (
                                     <DropdownMenuItem onClick={() => setStar(b._id, selectedRatings[b._id] ?? 5)}>
                                       Quick Rate 5★
@@ -478,6 +496,47 @@ export const Profile = () => {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMessage(''); setFeedbackBookingId(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share your feedback</DialogTitle>
+            <DialogDescription>
+              Tell us about your experience for this booking. This helps us improve.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="feedback" className="text-sm">Feedback</Label>
+            <Textarea id="feedback" value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Type your feedback here..." rows={5} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmitting}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!feedbackBookingId || !feedbackMessage.trim()) { toast.error('Please enter feedback'); return; }
+              try {
+                setFeedbackSubmitting(true);
+                if (feedbackBookingId.startsWith('demo-')) {
+                  // demo-only local handling
+                  toast.success('Feedback submitted (demo)');
+                } else {
+                  await submitFeedback({ bookingId: feedbackBookingId, message: feedbackMessage.trim() });
+                  toast.success('Thanks for your feedback!');
+                }
+                setFeedbackOpen(false);
+                setFeedbackMessage('');
+                setFeedbackBookingId(null);
+              } catch (e) {
+                console.error(e);
+                toast.error('Failed to submit feedback');
+              } finally {
+                setFeedbackSubmitting(false);
+              }
+            }} disabled={feedbackSubmitting}>
+              {feedbackSubmitting ? 'Submitting...' : 'Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
