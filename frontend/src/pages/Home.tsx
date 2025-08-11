@@ -127,14 +127,17 @@ export const Home = () => {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
-        <div className="absolute inset-0 bg-black/60" />
+        {/* Base dark overlay with theme-aware opacity */}
+        <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
+        {/* Gradient + multiply layer to blend photo and UI, adds night realism */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent dark:from-black/80 dark:via-black/60 dark:to-black/10 mix-blend-multiply" />
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]">
             Book Your Perfect{' '}
             <span className="text-gradient-primary">Sports Court</span>
           </h1>
-          <p className="text-xl text-gray-200 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-200 max-w-2xl mx-auto drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
             Discover and book local sports facilities instantly. Join matches, 
             meet players, and elevate your game.
           </p>
@@ -149,7 +152,7 @@ export const Home = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="text-lg px-8 border-white/20 text-white hover:bg-white/10"
+                className="text-lg px-8 border-white/30 text-white bg-transparent hover:bg-white/10 focus:ring-2 focus:ring-white/40"
               >
                 <MapPin className="mr-2 h-5 w-5" />
                 Find Venues
@@ -173,7 +176,7 @@ export const Home = () => {
 
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="card-gradient hover-lift border-border/50">
+              <Card key={index} className="card-gradient hover-lift hover-grow border-border/50">
                 <CardContent className="p-6 text-center">
                   <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
                     <feature.icon className="h-8 w-8 text-primary" />
@@ -206,7 +209,7 @@ export const Home = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {popularSports.map((sport, index) => (
               <Link key={index} to={`/venues?sport=${sport.name.toLowerCase()}`}>
-                <Card className="card-gradient hover-lift border-border/50 cursor-pointer">
+                <Card className="card-gradient hover-lift hover-grow border-border/50 cursor-pointer">
                   <CardContent className="p-6 text-center">
                     <div className="text-4xl mb-3">{sport.icon}</div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -238,7 +241,7 @@ export const Home = () => {
           <div className="grid md:grid-cols-3 gap-8">
             {featuredVenues.map((venue) => (
               <Link key={venue.id} to={`/venues/${venue.id}`}>
-                <Card className="card-gradient hover-lift border-border/50 overflow-hidden">
+                <Card className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
                   <div className="h-48 bg-muted/50 flex items-center justify-center">
                     <span className="text-muted-foreground">Venue Image</span>
                   </div>
@@ -297,16 +300,15 @@ export const Home = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/auth">
-              <Button size="lg" className="bg-white text-primary hover:bg-gray-100 btn-bounce text-lg px-8">
+              <Button size="lg" className="btn-bounce text-lg px-8 bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-white/30">
                 <Users className="mr-2 h-5 w-5" />
                 Get Started
               </Button>
             </Link>
             <Link to="/venues">
               <Button 
-                size="lg" 
-                variant="outline" 
-                className="text-lg px-8 border-white/30 text-white hover:bg-white/10"
+                size="lg"
+                className="text-lg px-8 bg-white text-primary hover:bg-gray-100 focus:ring-2 focus:ring-white/40"
               >
                 Browse Venues
               </Button>

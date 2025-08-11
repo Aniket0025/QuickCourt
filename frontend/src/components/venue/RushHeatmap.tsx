@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { predictPrice, PredictPriceResponse } from '@/lib/api';
+import { predictPriceBatch } from '@/lib/api';
 
 type Props = {
   venueId: string;
@@ -13,13 +13,13 @@ type Cell = {
   iso: string;
   hour: number;
   dayLabel: string;
-  data?: PredictPriceResponse;
+  data?: { suggestedPrice: number; rushScore: number };
 };
 
 const HOURS = Array.from({ length: 17 }, (_ , i) => i + 6); // 6..22
 
 function fmtDay(d: Date) {
-  return d.toLocaleDateString(undefined, { weekday: 'short' });
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function colorForRush(r: number) {
@@ -32,49 +32,62 @@ function colorForRush(r: number) {
 export function RushHeatmap({ venueId, courtId, basePrice, outdoor }: Props) {
   const [cells, setCells] = useState<Cell[][]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAffordableOnly, setShowAffordableOnly] = useState(false);
 
   const days = useMemo(() => {
-    const arr: Date[] = [];
-    const d0 = new Date();
-    d0.setHours(0,0,0,0);
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(d0);
-      d.setDate(d0.getDate() + i);
-      arr.push(d);
-    }
-    return arr;
+    const now = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
   }, []);
+
+  // Aggregates for Deal Pulse
+  const aggregates = useMemo(() => {
+    const flat = cells.flat();
+    const today = new Date().toDateString();
+    const todayCells = flat.filter(c => new Date(c.iso).toDateString() === today);
+    const affordableToday = todayCells.filter(c => (c.data?.rushScore ?? 1) < 0.4);
+    const lowest = flat
+      .filter(c => c.data)
+      .sort((a, b) => (a.data!.suggestedPrice - b.data!.suggestedPrice))[0];
+    return {
+      affordableWeek: flat.filter(c => (c.data?.rushScore ?? 1) < 0.4).length,
+      affordableToday: affordableToday.length,
+      lowest
+    };
+  }, [cells]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      const grid: Cell[][] = [];
-      for (const h of HOURS) {
-        const rowPromises = days.map(async (d) => {
+      try {
+        setLoading(true);
+        // Build all items and fetch in one batch
+        const items = days.flatMap((d) => HOURS.map((h) => {
           const dt = new Date(d);
           dt.setHours(h, 0, 0, 0);
-          const iso = dt.toISOString();
-          try {
-            const data = await predictPrice({
-              venueId,
-              courtId,
-              dateTime: iso,
-              basePrice,
-              durationHours: 1,
-              outdoor: !!outdoor,
-            });
-            return { iso, hour: h, dayLabel: fmtDay(dt), data } as Cell;
-          } catch {
-            return { iso, hour: h, dayLabel: fmtDay(dt) } as Cell;
-          }
+          return { dateTime: dt.toISOString(), basePrice, durationHours: 1 };
+        }));
+        const res = await predictPriceBatch({ venueId, courtId, items, benchmarkPrice: basePrice, outdoor });
+        const byIso = new Map(res.items.map(it => [it.dateTime, it] as const));
+        const grid: Cell[][] = days.map((d) => {
+          return HOURS.map((h) => {
+            const dt = new Date(d);
+            dt.setHours(h, 0, 0, 0);
+            const iso = dt.toISOString();
+            const data = byIso.get(iso);
+            return { iso, hour: h, dayLabel: fmtDay(dt), data: data ? { suggestedPrice: data.suggestedPrice, rushScore: data.rushScore } : undefined };
+          });
         });
-        const row = await Promise.all(rowPromises);
-        if (cancelled) return;
-        grid.push(row);
+        if (!cancelled) setCells(grid);
+        if (!cancelled) setLoading(false);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setLoading(false);
       }
-      if (!cancelled) setCells(grid);
-      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [venueId, courtId, basePrice, outdoor, days]);
@@ -82,7 +95,30 @@ export function RushHeatmap({ venueId, courtId, basePrice, outdoor }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Rush Forecast & Suggested Price</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Rush Forecast & Suggested Price</CardTitle>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              className="h-3 w-3"
+              checked={showAffordableOnly}
+              onChange={(e) => setShowAffordableOnly(e.target.checked)}
+            />
+            Smart Saver ({aggregates.affordableWeek} this week)
+          </label>
+        </div>
+        {/* Deal Pulse strip */}
+        {!loading && (
+          <div className="mt-2 text-xs text-muted-foreground animate-pulse">
+            {aggregates.affordableToday} Affordable Hours today
+            {aggregates.lowest?.data && (
+              <>
+                {` • Lowest: ₹${aggregates.lowest.data.suggestedPrice} at `}
+                {new Date(aggregates.lowest.iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              </>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="text-xs text-muted-foreground mb-3">
@@ -101,11 +137,17 @@ export function RushHeatmap({ venueId, courtId, basePrice, outdoor }: Props) {
                   {cells[h-6]?.map((cell, j) => {
                     const rush = cell.data?.rushScore ?? 0;
                     const price = cell.data?.suggestedPrice ?? basePrice;
+                    const affordable = rush < 0.4;
+                    if (showAffordableOnly && !affordable) {
+                      return (
+                        <div key={`${h}-${j}`} className="h-8 rounded-sm border border-border/30 opacity-20" />
+                      );
+                    }
                     return (
                       <div
                         key={`${h}-${j}`}
                         title={`Rush: ${(rush*100).toFixed(0)}%\nSuggested: ₹${price}`}
-                        className="h-8 rounded-sm border border-border/30"
+                        className={`h-8 rounded-sm border border-border/30 ${affordable ? 'ring-1 ring-emerald-400/50' : ''}`}
                         style={{ background: colorForRush(rush), opacity: 0.9 }}
                       />
                     );
