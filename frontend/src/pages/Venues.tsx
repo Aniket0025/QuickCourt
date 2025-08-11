@@ -193,190 +193,128 @@ export const Venues = () => {
 
         {/* Venues Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredVenues.map((venue) => (
-            <Card key={venue.id} className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
-              {loading && (
-                <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
-              )}
-              {!loading && filteredVenues.map((venue) => (
-                <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
-                  <div className="h-48 bg-muted/50 flex items-center justify-center relative">
-                    {venue.photo ? (
-                      <img
-                        src={venue.photo}
-                        alt={venue.name}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 w-full h-full bg-muted" />
-                    )}
-                    <div className="absolute inset-0 bg-black/20" />
-                    {!venue.available && (
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="destructive">Fully Booked</Badge>
+          {loading ? (
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
+          ) : (
+            filteredVenues.map((venue) => (
+              <Card key={venue.id} className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
+                <div className="h-48 bg-muted/50 flex items-center justify-center relative">
+                  {venue.photo ? (
+                    <img
+                      src={venue.photo}
+                      alt={venue.name}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-muted" />
+                  )}
+                  <div className="absolute inset-0 bg-black/20" />
+                  {venue.rushStatus === 'hot' && (
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="destructive">Hot Now</Badge>
+                    </div>
+                  )}
+                  {venue.rushStatus === 'chill' && (
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="secondary">Chill Now</Badge>
+                    </div>
+                  )}
+                  {!venue.available && (
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="destructive">Fully Booked</Badge>
+                    </div>
+                  )}
+                </div>
+
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-xl font-semibold text-foreground line-clamp-1">
+                      {venue.name}
+                    </h3>
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-warning fill-current" />
+                      <span className="text-sm font-medium">{venue.rating}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary">{venue.sport}</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {venue.courts} court{venue.courts !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-muted-foreground">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span className="text-sm line-clamp-1">{venue.location}</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {venue.amenities.slice(0, 3).map((amenity, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {amenity}
+                        </Badge>
+                      ))}
+                      {venue.amenities.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{venue.amenities.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-4 border-t border-border/50">
+                      <div>
+                        <span className="text-2xl font-bold text-secondary">
+                          ₹{venue.price}
+                        </span>
+                        <span className="text-sm text-muted-foreground">/hour</span>
                       </div>
-          {loading && (
-                      <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
-                    )}
-                    {!loading && filteredVenues.map((venue) => (
-                      <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
-                        <div className="h-48 bg-muted/50 flex items-center justify-center relative">
-                          {venue.photo ? (
-                            <img
-                              src={venue.photo}
-                              alt={venue.name}
-                              className="absolute inset-0 w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 w-full h-full bg-muted" />
-                          )}
-                          <div className="absolute inset-0 bg-black/20" />
-                          {/* Hot/Chill badges */}
-                          {venue.rushStatus === 'hot' && (
-                            <div className="absolute top-2 left-2">
-                              <Badge variant="destructive">Hot Now</Badge>
-                            </div>
-                          )}
-                          {venue.rushStatus === 'chill' && (
-                            <div className="absolute top-2 left-2">
-                              <Badge variant="secondary">Chill Now</Badge>
-                            </div>
-                          )}
-                          {!venue.available && (
-                            <div className="absolute top-2 right-2">
-                              <Badge variant="destructive">Fully Booked</Badge>
-                            </div>
-                          )}
-                        </div>
+                      <Link to={`/venues/${venue.id}`}>
+                        <Button 
+                          className="btn-bounce bg-primary hover:bg-primary/90"
+                          disabled={!venue.available}
+                        >
+                          <Calendar className="h-4 w-4 mr-2" />
+                          {venue.available ? 'Book Now' : 'Unavailable'}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
 
-                        <CardContent className="p-6">
-                          <div className="flex justify-between items-start mb-3">
-                            <h3 className="text-xl font-semibold text-foreground line-clamp-1">
-                              {venue.name}
-                            </h3>
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-4 w-4 text-warning fill-current" />
-                              <span className="text-sm font-medium">{venue.rating}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <Badge variant="secondary">{venue.sport}</Badge>
-                              <span className="text-sm text-muted-foreground">
-                                {venue.courts} court{venue.courts !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center text-muted-foreground">
-                              <MapPin className="h-4 w-4 mr-2" />
-                              <span className="text-sm line-clamp-1">{venue.location}</span>
-                            </div>
-
-                            <div className="flex flex-wrap gap-1">
-                              {venue.amenities.slice(0, 3).map((amenity, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {amenity}
-                                </Badge>
-                              ))}
-                              {venue.amenities.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{venue.amenities.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-
-                            <CardContent className="p-6">
-                              <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-xl font-semibold text-foreground line-clamp-1">
-                                  {venue.name}
-                                </h3>
-                                <div className="flex items-center space-x-1">
-                                  <Star className="h-4 w-4 text-warning fill-current" />
-                                  <span className="text-sm font-medium">{venue.rating}</span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <Badge variant="secondary">{venue.sport}</Badge>
-                                  <span className="text-sm text-muted-foreground">
-                                    {venue.courts} court{venue.courts !== 1 ? 's' : ''}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center text-muted-foreground">
-                                  <MapPin className="h-4 w-4 mr-2" />
-                                  <span className="text-sm line-clamp-1">{venue.location}</span>
-                                </div>
-
-                                <div className="flex flex-wrap gap-1">
-                                  {venue.amenities.slice(0, 3).map((amenity, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {amenity}
-                                    </Badge>
-                                  ))}
-                                  {venue.amenities.length > 3 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{venue.amenities.length - 3} more
-                                    </Badge>
-                                  )}
-                                </div>
-
-                                <div className="flex justify-between items-center pt-4 border-t border-border/50">
-                                  <div>
-                                    <span className="text-2xl font-bold text-secondary">
-                                      ₹{venue.price}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">/hour</span>
-                                  </div>
-                                  <Link to={`/venues/${venue.id}`}>
-                                    <Button
-                                      className="btn-bounce bg-primary hover:bg-primary/90"
-                                      disabled={!venue.available}
-                                    >
-                                      <Calendar className="h-4 w-4 mr-2" />
-                                      {venue.available ? 'Book Now' : 'Unavailable'}
-                                    </Button>
-                                  </Link>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-              ))}
-                        </div>
-
-                        {/* No Results */}
-                        {
-                          filteredVenues.length === 0 && (
-                            <div className="text-center py-16">
-                              <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
-                                <Search className="h-12 w-12 text-muted-foreground" />
-                              </div>
-                              <h3 className="text-xl font-semibold text-foreground mb-2">
-                                No venues found
-                              </h3>
-                              <p className="text-muted-foreground mb-6">
-                                Try adjusting your search criteria or browse all venues
-                              </p>
-                              <Button
-                                onClick={() => {
-                                  setSearchQuery('');
-                                  setSelectedSport('all');
-                                  setPriceRange('all');
-                                }}
-                                variant="outline"
-                              >
-                                Clear Filters
-                              </Button>
-                            </div>
-                          )
-                        }
-                      </div>
+        {/* No Results */}
+        {(!loading && filteredVenues.length === 0) && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
+              <Search className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No venues found
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              Try adjusting your search criteria or browse all venues
+            </p>
+            <Button 
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedSport('all');
+                setPriceRange('all');
+              }}
+              variant="outline"
+            >
+              Clear Filters
+            </Button>
+          </div>
+        )}
       </div>
-                  );
+    </div>
+  );
 };
 
-                  export default Venues;
+export default Venues;
