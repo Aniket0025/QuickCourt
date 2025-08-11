@@ -53,35 +53,18 @@ const OwnerDashboard = () => {
         )}
 
         <section className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Calendar (This Week)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2 text-center">
-                {[
-                  { d: 'Mon', slots: 18 },
-                  { d: 'Tue', slots: 22 },
-                  { d: 'Wed', slots: 19 },
-                  { d: 'Thu', slots: 25 },
-                  { d: 'Fri', slots: 27 },
-                  { d: 'Sat', slots: 31 },
-                  { d: 'Sun', slots: 24 },
-                ].map((x) => (
-                  <div key={x.d} className="space-y-2">
-                    <div className="h-32 w-full bg-primary/15 rounded-md relative overflow-hidden">
-                      <div
-                        className="absolute bottom-0 left-0 right-0 bg-primary"
-                        style={{ height: `${(x.slots / 35) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">{x.d}</div>
-                    <div className="text-xs font-medium">{x.slots} slots</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {venueId ? (
+            <OwnerBookingActivity venueId={venueId} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Activity (7d)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">Create or save your facility to see bookings.</div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>

@@ -5,6 +5,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/lib/auth';
 import { Menu, User, LogOut, Calendar, MapPin, Home, LayoutDashboard, Info } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
+
 import logoUrl from '@/assets/logo.png';
 
 export const Navbar = () => {
@@ -73,8 +75,9 @@ export const Navbar = () => {
             ))}
           </div>
 
-          {/* User Menu / Auth Buttons */}
+          {/* Theme + User Menu / Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
+            <ThemeToggle />
             {user ? (
               <div className="flex items-center space-x-3">
                 <Link to="/profile">
@@ -102,12 +105,14 @@ export const Navbar = () => {
                 const label = targetMode === 'signup' ? 'Sign Up' : 'Sign In';
                 const href = `/auth?mode=${targetMode}`;
                 return (
-                  <Link to={href}>
-                    <Button className="btn-bounce bg-primary hover:bg-primary/90 shadow-sm">
-                      <User className="h-4 w-4 mr-2" />
-                      {label}
-                    </Button>
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link to={href}>
+                      <Button className="btn-bounce bg-primary hover:bg-primary/90 shadow-sm">
+                        <User className="h-4 w-4 mr-2" />
+                        {label}
+                      </Button>
+                    </Link>
+                  </div>
                 );
               })()
             )}
@@ -122,6 +127,9 @@ export const Navbar = () => {
             </SheetTrigger>
             <SheetContent side="right" className="w-72 bg-card border-border">
               <div className="flex flex-col space-y-4 mt-6">
+                <div className="px-4">
+                  <ThemeToggle />
+                </div>
                 {navItems.map(({ path, label, icon: Icon }) => (
                   <Link
                     key={path}

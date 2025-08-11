@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdminStats7d } from "../hooks/useAdminStats7d";
+import type { AdminStats7d } from "@/lib/api";
 
 export function BookingActivity() {
   const { data, isLoading, error, refetch } = useAdminStats7d();
-
-  const max = Math.max(1, ...(data?.bookingsPerDay || [1]));
-  const labels = data?.dayLabels || [];
-  const values = data?.bookingsPerDay || [];
+  const stats = data as AdminStats7d | undefined;
+  const labels: string[] = stats?.dayLabels ?? [];
+  const values: number[] = stats?.bookingsPerDay ?? [];
+  const max = Math.max(1, ...values, 1);
+  const hasAny = values.some((v) => v > 0);
 
   return (
     <Card>
@@ -35,6 +37,9 @@ export function BookingActivity() {
           })}
           {isLoading && !labels.length && (
             <div className="col-span-7 text-sm text-muted-foreground">Loading...</div>
+          )}
+          {!isLoading && labels.length > 0 && !hasAny && (
+            <div className="col-span-7 text-sm text-muted-foreground">No bookings in the last 7 days.</div>
           )}
         </div>
       </CardContent>
