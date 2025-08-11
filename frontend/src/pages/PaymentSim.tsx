@@ -40,7 +40,7 @@ const PaymentSim = () => {
       });
 
       toast.success('Payment successful and booking confirmed.');
-      navigate('/bookings', { replace: true });
+      navigate('/profile?tab=bookings', { replace: true });
     } catch (e: any) {
       toast.error(e?.message || 'Failed to confirm booking');
     }
