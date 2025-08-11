@@ -23,6 +23,7 @@ import TimeSlotManagement from "./pages/owner/TimeSlotManagement";
 import BookingOverview from "./pages/owner/BookingOverview";
 import FacilityApproval from "./pages/admin/FacilityApproval";
 import UserManagement from "./pages/admin/UserManagement";
+import About from "./pages/About";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/venues/:id/book" element={<BookCourt />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/bookings" element={<MyBookings />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/dashboard/admin" element={<AdminDashboard />} />
                 <Route path="/admin/facility-approval" element={<FacilityApproval />} />
                 <Route path="/admin/users" element={<UserManagement />} />

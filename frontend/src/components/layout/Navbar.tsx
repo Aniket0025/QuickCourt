@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/lib/auth';
-import { Menu, User, LogOut, Calendar, MapPin, Home, LayoutDashboard } from 'lucide-react';
+import { Menu, User, LogOut, Calendar, MapPin, Home, LayoutDashboard, Info } from 'lucide-react';
 import logoUrl from '@/assets/logo.png';
 
 export const Navbar = () => {
@@ -24,8 +24,14 @@ export const Navbar = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/venues', label: 'Venues', icon: MapPin },
-    ...(user ? [{ path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard }] : []),
-  ];
+    { path: '/about', label: 'About', icon: Info },
+    ...(user
+      ? [
+          { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
+          ...(user.role === 'user' ? [{ path: '/bookings', label: 'My Bookings', icon: Calendar }] : []),
+        ]
+      : []),
+  ];
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-lg">
