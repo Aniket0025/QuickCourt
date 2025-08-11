@@ -81,6 +81,10 @@ export async function cancelBookingApi(id: string) {
   return apiFetch(`/api/bookings/${id}/cancel`, { method: 'PATCH' });
 }
 
+export async function confirmBookingApi(id: string) {
+  return apiFetch(`/api/bookings/${id}/confirm`, { method: 'PATCH' });
+}
+
 export async function listVenues(params?: { sport?: string }) {
   const q = new URLSearchParams();
   if (params?.sport) q.set('sport', params.sport);

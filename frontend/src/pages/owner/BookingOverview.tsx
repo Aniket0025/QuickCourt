@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
-import { cancelBookingApi, listMyVenues, listVenueBookings, type Booking } from '@/lib/api';
+import { cancelBookingApi, confirmBookingApi, listMyVenues, listVenueBookings, type Booking } from '@/lib/api';
 
 const BookingOverview = () => {
   const { user } = useAuth();
@@ -43,6 +43,7 @@ const BookingOverview = () => {
   }, [venueId]);
 
   const canCancel = (b: Booking) => b.status === 'confirmed' || b.status === 'pending';
+  const canConfirm = (b: Booking) => b.status === 'pending';
   const fmtWhen = (dt: string | Date) => {
     const d = new Date(dt);
     const opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' } as any;
@@ -80,6 +81,18 @@ const BookingOverview = () => {
       await load();
     } catch (e) {
       // surface as toast in future; for now, inline fallback reload
+      await load();
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  async function onConfirm(id: string) {
+    try {
+      setCancellingId(id);
+      await confirmBookingApi(id);
+      await load();
+    } catch (e) {
       await load();
     } finally {
       setCancellingId(null);
@@ -126,6 +139,11 @@ const BookingOverview = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className={`text-xs ${b.status === 'confirmed' ? 'text-secondary' : b.status === 'cancelled' ? 'text-destructive' : 'text-warning'}`}>{b.status}</div>
+                    {canConfirm(b) && (
+                      <Button size="sm" variant="default" disabled={cancellingId === b._id} onClick={() => onConfirm(b._id)}>
+                        {cancellingId === b._id ? 'Confirming…' : 'Confirm'}
+                      </Button>
+                    )}
                     {canCancel(b) && (
                       <Button size="sm" variant="outline" disabled={cancellingId === b._id} onClick={() => onCancel(b._id)}>
                         {cancellingId === b._id ? 'Cancelling…' : 'Cancel'}
