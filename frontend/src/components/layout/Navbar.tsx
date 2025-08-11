@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import FriendlyAvatar from '@/assets/friendly-avatar.svg';
+
 import { useAuth } from '@/lib/auth';
 import { Menu, User, LogOut, Calendar, MapPin, Home, LayoutDashboard, Info } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -82,11 +84,13 @@ export const Navbar = () => {
               <div className="flex items-center space-x-3">
                 <Link to="/profile">
                   <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
+                    <AvatarImage src={user.avatar || (FriendlyAvatar as unknown as string)} alt={user.name} />
                     <AvatarFallback className="bg-primary/10 text-primary">
                       {user.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
+
                 <Button
                   variant="ghost"
                   size="sm"

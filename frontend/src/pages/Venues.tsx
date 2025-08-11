@@ -42,6 +42,9 @@ export const Venues = () => {
   const [customCenter, setCustomCenter] = useState<LatLng | null>(null);
   const navigate = useNavigate();
 
+  // Default location: IIT Gandhinagar
+  const IITGN = useMemo<LatLng>(() => ({ lat: 23.2156, lng: 72.6842 }), []);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const sportParam = params.get('sport');
@@ -114,18 +117,6 @@ export const Venues = () => {
     })();
   }, [nearMe]);
 
-
-  useEffect(() => {
-    (async () => {
-      if (!nearMe || !userLoc) { setPois([]); return; }
-      try {
-        const data = await fetchSportsPOIsOverpass(userLoc, radiusKm);
-        setPois(data);
-      } catch {
-        setPois([]);
-      }
-    })();
-  }, [nearMe, userLoc, radiusKm]);
 
   useEffect(() => {
     (async () => {
@@ -404,21 +395,23 @@ export const Venues = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
 
         {/* Map and controls below the grid */}
         {!loading && sortedVenues.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 w-full">
             <GoogleMapView
               venues={sortedVenues
                 .filter(v=> typeof v.lat==='number' && typeof v.lng==='number')
                 .map(v=> ({ id: v.id, name: v.name, lat: v.lat as number, lng: v.lng as number, price: v.price, rush: v.rushStatus })) as GMapVenue[]}
               user={userLoc || undefined}
-              center={customCenter || undefined}
+              center={customCenter || IITGN}
               height={360}
               onNavigate={(id)=>navigate(`/venues/${id}`)}
               pois={pois}
               radiusKm={radiusKm}
               poiFilter={poiFilter}
+              extraMarkers={[{ lat: IITGN.lat, lng: IITGN.lng, title: 'Indian Institute Of Technology Gandhinagar (IIT Gandhinagar), Palaj' }]}
               onPoisUpdate={setPois}
             />
 
@@ -492,8 +485,6 @@ export const Venues = () => {
             </div>
           </div>
         )}
-
-        </div>
 
         {/* No Results */}
         {(!loading && filteredVenues.length === 0) && (

@@ -29,6 +29,7 @@ type Props = {
   poiFilter?: 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
   onNavigate?: (id: string | number) => void;
   onPoisUpdate?: (pois: MapPOI[]) => void;
+  extraMarkers?: { lat: number; lng: number; title?: string }[];
 };
 
 const containerStyle = (h?: number) => ({ width: '100%', height: `${h ?? 360}px`, borderRadius: 8, overflow: 'hidden' });
@@ -68,6 +69,7 @@ const GoogleMapView: React.FC<Props> = ({
   radiusKm = 8,
   onNavigate,
   onPoisUpdate,
+  extraMarkers,
 }) => {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string,
@@ -159,6 +161,15 @@ const GoogleMapView: React.FC<Props> = ({
             position={{ lat: v.lat, lng: v.lng }}
             title={v.name}
             onClick={() => onNavigate?.(v.id)}
+          />
+        ))}
+
+        {/* Extra custom markers */}
+        {extraMarkers?.map((m, idx) => (
+          <MarkerF
+            key={`extra_${idx}_${m.lat}_${m.lng}`}
+            position={{ lat: m.lat, lng: m.lng }}
+            title={m.title || 'Location'}
           />
         ))}
 
