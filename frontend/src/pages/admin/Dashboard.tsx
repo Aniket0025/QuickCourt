@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAdminMetrics } from "./hooks/useAdminMetrics";
 import { StatsCards } from "./components/StatsCards";
+import { BookingActivity } from "./components/BookingActivity";
+import { UserRegistrations } from "./components/UserRegistrations";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -47,60 +49,8 @@ const AdminDashboard = () => {
         />
 
         <section className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking Activity (7d)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2 text-center">
-                {[
-                  { d: 'Mon', v: 1650 },
-                  { d: 'Tue', v: 1720 },
-                  { d: 'Wed', v: 1685 },
-                  { d: 'Thu', v: 1792 },
-                  { d: 'Fri', v: 1940 },
-                  { d: 'Sat', v: 2105 },
-                  { d: 'Sun', v: 1953 },
-                ].map((x) => (
-                  <div key={x.d} className="space-y-2">
-                    <div className="h-28 w-full bg-primary/15 rounded-md relative overflow-hidden">
-                      <div
-                        className="absolute bottom-0 left-0 right-0 bg-primary"
-                        style={{ height: `${(x.v / 2200) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">{x.d}</div>
-                    <div className="text-xs font-medium">{x.v.toLocaleString()}</div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>User Registrations (7d)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm space-y-2">
-                {[
-                  { d: 'Mon', v: 42 },
-                  { d: 'Tue', v: 57 },
-                  { d: 'Wed', v: 51 },
-                  { d: 'Thu', v: 63 },
-                  { d: 'Fri', v: 78 },
-                  { d: 'Sat', v: 95 },
-                  { d: 'Sun', v: 69 },
-                ].map((x) => (
-                  <li key={x.d} className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{x.d}</span>
-                    <span className="px-2 py-0.5 rounded bg-secondary/20 text-secondary-foreground text-xs">
-                      {x.v} new users
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          <BookingActivity />
+          <UserRegistrations />
         </section>
 
         <section>

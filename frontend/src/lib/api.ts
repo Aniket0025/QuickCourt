@@ -77,6 +77,17 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
   return apiFetch('/api/admin/metrics', { method: 'GET' });
 }
 
+// Admin 7-day stats
+export type AdminStats7d = {
+  dayLabels: string[]; // YYYY-MM-DD
+  bookingsPerDay: number[]; // length 7
+  registrationsPerDay: number[]; // length 7
+};
+
+export async function getAdmin7dStats(): Promise<AdminStats7d> {
+  return apiFetch('/api/admin/stats-7d', { method: 'GET' });
+}
+
 export async function rateBooking(id: string, rating: number) {
   return apiFetch(`/api/bookings/${id}/rate`, {
     method: 'PATCH',
@@ -88,5 +99,12 @@ export async function submitFeedback(payload: { bookingId: string; message: stri
   return apiFetch('/api/feedback', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function requestPasswordReset(email: string) {
+  return apiFetch('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
   });
 }
