@@ -30,8 +30,8 @@ export const Navbar = () => {
           { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
           ...(user.role === 'user' ? [{ path: '/bookings', label: 'My Bookings', icon: Calendar }] : []),
         ]
-      : []),
-  ];
+      : []),
+  ];
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-lg">

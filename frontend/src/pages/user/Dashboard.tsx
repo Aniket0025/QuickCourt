@@ -62,9 +62,6 @@ const UserDashboard = () => {
                 <Button asChild variant="secondary" size="sm">
                   <Link to="/venues">Browse Venues</Link>
                 </Button>
-                <Button asChild variant="secondary" size="sm">
-                  <Link to="/bookings">My Bookings</Link>
-                </Button>
               </div>
             </CardContent>
           </Card>

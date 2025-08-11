@@ -67,3 +67,10 @@ export async function rateBooking(id: string, rating: number) {
     body: JSON.stringify({ rating }),
   });
 }
+
+export async function submitFeedback(payload: { bookingId: string; message: string; rating?: number }) {
+  return apiFetch('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
