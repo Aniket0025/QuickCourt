@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { findVenue } from '@/lib/data';
 import { useAuth } from '@/lib/auth';
+import { RushHeatmap } from '@/components/venue/RushHeatmap';
+import { FairSurgeBanner } from '@/components/venue/FairSurgeBanner';
+import { RevenueLab } from '@/components/venue/RevenueLab';
 
 const VenueDetails = () => {
   const { id } = useParams();
@@ -36,6 +39,14 @@ const VenueDetails = () => {
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-6">
+          {/* Rush & Price Heatmap - moved to main column for visibility */}
+          {venue.courts.length > 0 && (
+            <RushHeatmap
+              venueId={venue.id}
+              courtId={venue.courts[0].id}
+              basePrice={venue.courts[0].pricePerHour}
+            />
+          )}
           <Card>
             <CardHeader>
               <CardTitle>About Venue</CardTitle>
@@ -45,6 +56,18 @@ const VenueDetails = () => {
               <p className="text-sm">{venue.about}</p>
             </CardContent>
           </Card>
+
+          {/* Fair Surge banner */}
+          <FairSurgeBanner />
+
+          {/* Revenue Lab */}
+          {venue.courts.length > 0 && (
+            <RevenueLab
+              venueId={venue.id}
+              courtId={venue.courts[0].id}
+              basePrice={venue.courts[0].pricePerHour}
+            />
+          )}
 
           <Card>
             <CardHeader>
@@ -123,6 +146,8 @@ const VenueDetails = () => {
               <div className="text-xs text-muted-foreground">Starting from ₹{Math.min(...venue.courts.map(c=>c.pricePerHour))}/hr</div>
             </CardContent>
           </Card>
+
+          
 
           <Card>
             <CardHeader>
