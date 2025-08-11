@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useEffect, useMemo, useState } from 'react';
-import { cancelBookingApi, listBookings } from '@/lib/api';
+import { cancelBookingApi, listBookings, rateBooking } from '@/lib/api';
 
 const MyBookings = () => {
   const { user } = useAuth();
@@ -19,8 +19,11 @@ const MyBookings = () => {
     durationHours: number;
     price: number;
     status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
+    rating?: number;
   };
   const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [selectedRatings, setSelectedRatings] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
   const now = new Date();
   const filtered = useMemo(() => bookings.filter(b => (filter === 'all' ? true : b.status === filter)), [bookings, filter]);
 
@@ -38,12 +41,6 @@ const MyBookings = () => {
     load();
   }, [user]);
 
-  if (!user) return <Navigate to="/auth" replace />;
-  if (user.role !== 'user') {
-    const target = user.role === 'admin' ? '/dashboard/admin' : '/dashboard/facility';
-    return <Navigate to={target} replace />;
-  }
-
   const handleCancel = async (id: string, dateTime: string) => {
     if (new Date(dateTime) <= now) return;
     try {
@@ -55,6 +52,32 @@ const MyBookings = () => {
       console.error(e);
     }
   };
+
+  const setStar = (id: string, value: number) => {
+    setSelectedRatings((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmitRating = async (id: string) => {
+    const value = selectedRatings[id];
+    if (!value) return;
+    try {
+      setSubmitting((p) => ({ ...p, [id]: true }));
+      await rateBooking(id, value);
+      // Refresh bookings to get updated rating
+      const res = await listBookings({ userId: user!.id });
+      setBookings(res.data as BookingItem[]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting((p) => ({ ...p, [id]: false }));
+    }
+  };
+
+  if (!user) return <Navigate to="/auth" replace />;
+  if (user.role !== 'user') {
+    const target = user.role === 'admin' ? '/dashboard/admin' : '/dashboard/facility';
+    return <Navigate to={target} replace />;
+  }
 
   return (
     <div className="container mx-auto px-4 py-10">
@@ -88,19 +111,50 @@ const MyBookings = () => {
             )}
             {filtered.map((b) => {
               const isFuture = new Date(b.dateTime) > now;
+              const canRate = b.status === 'completed';
+              const current = typeof b.rating === 'number' ? b.rating : 0;
+              const chosen = selectedRatings[b._id] ?? current;
               return (
-                <div key={b._id} className="flex items-center justify-between rounded-md border border-border/50 p-3 bg-card/50">
-                  <div>
-                    <div className="font-medium text-foreground">{b.courtName} ({b.sport})</div>
-                    <div className="text-xs text-muted-foreground">{new Date(b.dateTime).toLocaleString()} · {b.durationHours} hr{b.durationHours>1?'s':''}</div>
+                <div key={b._id} className="flex flex-col gap-2 rounded-md border border-border/50 p-3 bg-card/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-foreground">{b.courtName} ({b.sport})</div>
+                      <div className="text-xs text-muted-foreground">{new Date(b.dateTime).toLocaleString()} · {b.durationHours} hr{b.durationHours>1?'s':''}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold">₹ {b.price.toLocaleString()}</div>
+                      <div className={`text-xs ${b.status === 'confirmed' ? 'text-secondary' : b.status === 'completed' ? 'text-info' : b.status === 'cancelled' ? 'text-destructive' : 'text-warning'}`}>{b.status}</div>
+                      {b.status === 'confirmed' && isFuture && (
+                        <Button size="sm" variant="outline" className="mt-2" onClick={()=> handleCancel(b._id, b.dateTime)}>Cancel</Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold">₹ {b.price.toLocaleString()}</div>
-                    <div className={`text-xs ${b.status === 'confirmed' ? 'text-secondary' : b.status === 'completed' ? 'text-info' : b.status === 'cancelled' ? 'text-destructive' : 'text-warning'}`}>{b.status}</div>
-                    {b.status === 'confirmed' && isFuture && (
-                      <Button size="sm" variant="outline" className="mt-2" onClick={()=> handleCancel(b._id, b.dateTime)}>Cancel</Button>
-                    )}
-                  </div>
+                  {canRate && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            className={`text-xl ${i <= chosen ? 'text-yellow-400' : 'text-muted-foreground'}`}
+                            onClick={() => setStar(b._id, i)}
+                            aria-label={`Rate ${i} star${i>1?'s':''}`}
+                            disabled={!!b.rating}
+                          >
+                            {i <= chosen ? '★' : '☆'}
+                          </button>
+                        ))}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleSubmitRating(b._id)}
+                        disabled={!!b.rating || !selectedRatings[b._id] || !!submitting[b._id]}
+                      >
+                        {b.rating ? 'Rated' : (submitting[b._id] ? 'Submitting...' : 'Submit Rating')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}

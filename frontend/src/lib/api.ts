@@ -60,3 +60,10 @@ export async function cancelBookingApi(id: string) {
 export async function listVenues() {
   return apiFetch('/api/venues', { method: 'GET' });
 }
+
+export async function rateBooking(id: string, rating: number) {
+  return apiFetch(`/api/bookings/${id}/rate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ rating }),
+  });
+}
