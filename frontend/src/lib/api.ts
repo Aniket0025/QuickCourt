@@ -197,3 +197,48 @@ export async function predictPrice(payload: PredictPriceRequest): Promise<Predic
     body: JSON.stringify(payload),
   });
 }
+
+// Batch price predictions
+export type PredictPriceBatchItem = { dateTime: string; basePrice: number; durationHours?: number };
+export type PredictPriceBatchResponseItem = PredictPriceResponse & { dateTime: string };
+
+export async function predictPriceBatch(payload: {
+  venueId: string;
+  courtId: string;
+  items: PredictPriceBatchItem[];
+  benchmarkPrice?: number;
+  k?: number;
+  cap?: number;
+  outdoor?: boolean;
+}): Promise<{ items: PredictPriceBatchResponseItem[] }> {
+  return apiFetch('/api/ml/predict-price-batch', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Helper: find best deals over a 7-day window for given hours
+export async function findBestDeals(params: {
+  venueId: string;
+  courtId: string;
+  basePrice: number;
+  startHour?: number; // inclusive
+  endHour?: number;   // inclusive
+  days?: number;      // default 7
+  outdoor?: boolean;
+}): Promise<PredictPriceBatchResponseItem[]> {
+  const { venueId, courtId, basePrice, startHour = 8, endHour = 22, days = 7, outdoor } = params;
+  const items: PredictPriceBatchItem[] = [];
+  const now = new Date();
+  for (let d = 0; d < days; d++) {
+    for (let h = startHour; h <= endHour; h++) {
+      const dt = new Date(now);
+      dt.setDate(now.getDate() + d);
+      dt.setHours(h, 0, 0, 0);
+      items.push({ dateTime: dt.toISOString(), basePrice, durationHours: 1 });
+    }
+  }
+  const res = await predictPriceBatch({ venueId, courtId, items, benchmarkPrice: basePrice, outdoor });
+  // sort by suggestedPrice ascending, break ties by lower rush
+  return res.items.sort((a, b) => a.suggestedPrice - b.suggestedPrice || a.rushScore - b.rushScore);
+}
