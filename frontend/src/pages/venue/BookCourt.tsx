@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { findVenue, saveBooking } from '@/lib/data';
+import { findVenue } from '@/lib/data';
+import { createBooking, listVenues } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 
@@ -38,24 +39,28 @@ const BookCourt = () => {
       return;
     }
 
-    // Simulate payment delay
-    await new Promise(r => setTimeout(r, 800));
+    try {
+      // Simulate payment delay
+      await new Promise(r => setTimeout(r, 800));
 
-    saveBooking({
-      id: Date.now().toString(),
-      venueId: venue.id,
-      venueName: venue.name,
-      courtId: selectedCourt.id,
-      courtName: selectedCourt.name,
-      sport: selectedCourt.sport,
-      dateTime: slot,
-      durationHours: duration,
-      price: total,
-      status: 'confirmed',
-    });
+      // Map UI mock venue to real server venue by name
+      const venuesRes = await listVenues();
+      const serverVenue = (venuesRes.data as any[]).find(v => v.name === venue.name);
+      if (!serverVenue?._id) throw new Error('Server venue not found. Please seed venues or check names.');
 
-    toast.success('Booking confirmed!');
-    navigate('/bookings');
+      await createBooking({
+        userId: user!.id,
+        venueId: serverVenue._id,
+        courtId: selectedCourt.id,
+        dateTime: slot,
+        durationHours: duration,
+      });
+
+      toast.success('Booking confirmed!');
+      navigate('/bookings');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create booking');
+    }
   };
 
   return (
