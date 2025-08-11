@@ -6,23 +6,24 @@ import { UserModel } from './models/User';
 async function run() {
   const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://shreya:shreya123@oddo.8vdawkj.mongodb.net/?retryWrites=true&w=majority&appName=oddo';
   await connectDB(MONGO_URI);
-//34
-  const email = 'aniket93yadav@gmail.com';
-  const password = 'Aniket@0025';
+  //34
+  const email = 'yasinshaikh2186@gmail.com';
+  const password = '123456';
+
+  // Always ensure this admin exists with the latest credentials
+  const passwordHash = await bcrypt.hash(password, 10);
 
   const existing = await UserModel.findOne({ email });
   if (existing) {
-    if (existing.role !== 'admin') {
-      existing.role = 'admin' as any;
-      await existing.save();
-      console.log(`Updated existing user to admin: ${email}`);
-    } else {
-      console.log(`Admin already exists: ${email}`);
-    }
+    existing.name = 'Admin';
+    existing.role = 'admin' as any;
+    (existing as any).passwordHash = passwordHash;
+    (existing as any).isVerified = true;
+    await existing.save();
+    console.log(`Updated admin user with latest credentials: ${email}`);
     process.exit(0);
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
   await UserModel.create({
     name: 'Admin',
     email,

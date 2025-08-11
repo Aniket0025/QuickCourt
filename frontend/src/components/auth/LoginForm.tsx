@@ -32,7 +32,7 @@ export const LoginForm = ({ onSwitchToSignup }: LoginFormProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-foreground font-medium">
@@ -47,6 +47,7 @@ export const LoginForm = ({ onSwitchToSignup }: LoginFormProps) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 bg-input/50 border-border focus:border-primary"
+                autoComplete="email"
                 required
               />
             </div>
@@ -65,6 +66,7 @@ export const LoginForm = ({ onSwitchToSignup }: LoginFormProps) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-10 pr-10 bg-input/50 border-border focus:border-primary"
+                autoComplete="current-password"
                 required
               />
               <Button

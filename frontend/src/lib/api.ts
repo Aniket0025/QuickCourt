@@ -60,3 +60,16 @@ export async function cancelBookingApi(id: string) {
 export async function listVenues() {
   return apiFetch('/api/venues', { method: 'GET' });
 }
+
+// Admin APIs
+export type AdminMetrics = {
+  totalUsers: number;
+  facilityOwners: number;
+  totalVenues: number;
+  totalBookings: number;
+  activeCourts: number;
+};
+
+export async function getAdminMetrics(): Promise<AdminMetrics> {
+  return apiFetch('/api/admin/metrics', { method: 'GET' });
+}

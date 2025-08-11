@@ -3,6 +3,8 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAdminMetrics } from "./hooks/useAdminMetrics";
+import { StatsCards } from "./components/StatsCards";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -13,6 +15,8 @@ const AdminDashboard = () => {
       user.role === "facility_owner" ? "/dashboard/facility" : "/dashboard/user";
     return <Navigate to={target} replace />;
   }
+
+  const { data, isLoading, error, refetch } = useAdminMetrics();
 
   return (
     <div className="container mx-auto px-4 py-10">
@@ -28,44 +32,19 @@ const AdminDashboard = () => {
       </header>
 
       <main className="space-y-6">
-        <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">12,486</p>
-              <p className="text-xs text-muted-foreground mt-1">+327 this week</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Facility Owners</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">214</p>
-              <p className="text-xs text-muted-foreground mt-1">+6 new approvals</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Active Courts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">1,032</p>
-              <p className="text-xs text-muted-foreground mt-1">Across 68 facilities</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">89,745</p>
-              <p className="text-xs text-muted-foreground mt-1">1,245 in the last 24h</p>
-            </CardContent>
-          </Card>
-        </section>
+        {error && (
+          <div className="text-sm text-red-500">Failed to load metrics. <button className="underline" onClick={() => refetch()}>Retry</button></div>
+        )}
+        <StatsCards
+          loading={isLoading}
+          metrics={{
+            totalUsers: data?.totalUsers ?? 0,
+            facilityOwners: data?.facilityOwners ?? 0,
+            activeCourts: data?.activeCourts ?? 0,
+            totalBookings: data?.totalBookings ?? 0,
+            totalVenues: data?.totalVenues ?? 0,
+          }}
+        />
 
         <section className="grid gap-6 md:grid-cols-2">
           <Card>
