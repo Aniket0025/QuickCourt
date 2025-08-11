@@ -49,7 +49,7 @@ export const Navbar = () => {
               width={32}
               height={32}
             />
-            <span className="text-xl font-bold text-gradient-primary hidden sm:block">
+            <span className="text-xl font-bold text-gradient-brand hidden sm:block">
               QuickCourt
             </span>
           </Link>

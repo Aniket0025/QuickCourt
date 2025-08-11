@@ -60,8 +60,16 @@ export async function cancelBookingApi(id: string) {
   return apiFetch(`/api/bookings/${id}/cancel`, { method: 'PATCH' });
 }
 
-export async function listVenues() {
-  return apiFetch('/api/venues', { method: 'GET' });
+export async function listVenues(params?: { sport?: string }) {
+  const q = new URLSearchParams();
+  if (params?.sport) q.set('sport', params.sport);
+  return apiFetch(`/api/venues?${q.toString()}`, { method: 'GET' });
+}
+
+export type PopularSport = { name: string; venues: number };
+export async function getPopularSports(): Promise<PopularSport[]> {
+  const res = await apiFetch('/api/venues/popular-sports', { method: 'GET' });
+  return (res as any)?.data || [];
 }
 
 export async function listMyVenues() {
@@ -84,6 +92,25 @@ export async function addCourtSlots(venueId: string, courtId: string, slots: str
     method: 'POST',
     body: JSON.stringify({ slots }),
   });
+}
+
+export type VenueSummary = {
+  _id: string;
+  name: string;
+  sports?: string[];
+  address?: string;
+  city?: string;
+  location?: { lat?: number; lng?: number };
+  photos?: string[];
+  rating?: number;
+  pricePerHour?: number;
+  createdAt?: string;
+};
+
+export async function getFeaturedVenues(limit = 6): Promise<VenueSummary[]> {
+  const q = new URLSearchParams({ limit: String(limit) }).toString();
+  const res = await apiFetch(`/api/venues/featured?${q}`, { method: 'GET' });
+  return (res as any)?.data || [];
 }
 
 // Admin APIs

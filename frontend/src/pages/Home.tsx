@@ -1,51 +1,80 @@
 import { Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Calendar, MapPin, Users, Zap, Shield, Star, CheckCircle2, MessageCircle, TrendingUp, Clock, Heart, User, PenSquare, Trash2 } from 'lucide-react';
+import SplitText from '@/components/SplitText';
 import { Calendar, MapPin, Star, Users, Zap, Shield, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import heroImage from '@/assets/hero-sports.jpg';
 import { useEffect, useRef, useState } from 'react';
+import { getPopularSports, type PopularSport, getFeaturedVenues, type VenueSummary } from '@/lib/api';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CardHeader, CardTitle } from '@/components/ui/card';
 
 export const Home = () => {
-  const popularSports = [
-    { name: 'Badminton', icon: '🏸', venues: 24 },
-    { name: 'Tennis', icon: '🎾', venues: 18 },
-    { name: 'Basketball', icon: '🏀', venues: 12 },
-    { name: 'Football', icon: '⚽', venues: 8 },
+  const [popularSports, setPopularSports] = useState<PopularSport[]>([]);
+  const [loadingSports, setLoadingSports] = useState(true);
+  const defaultSports: PopularSport[] = [
+    { name: 'badminton', venues: 0 },
+    { name: 'tennis', venues: 0 },
+    { name: 'football', venues: 0 },
+    { name: 'cricket', venues: 0 },
+    { name: 'golf', venues: 0 },
+    { name: 'hockey', venues: 0 },
   ];
+  const sportIcon: Record<string, string> = {
+    badminton: '🏸',
+    tennis: '🎾',
+    basketball: '🏀',
+    football: '⚽',
+    soccer: '⚽',
+    cricket: '🏏',
+    squash: '🎯',
+    tabletennis: '🏓',
+    table_tennis: '🏓',
+    volleyball: '🏐',
+    golf: '⛳',
+    hockey: '🏑',
+  };
 
-  const featuredVenues = [
-    {
-      id: 1,
-      name: 'Ace Sports Complex',
-      sport: 'Badminton',
-      price: 1200,
-      rating: 4.8,
-      location: 'Koramangala',
-      image: '/api/placeholder/300/200',
-    },
-    {
-      id: 2,
-      name: 'Court Champions',
-      sport: 'Tennis',
-      price: 1800,
-      rating: 4.9,
-      location: 'Indiranagar',
-      image: '/api/placeholder/300/200',
-    },
-    {
-      id: 3,
-      name: 'Slam Dunk Arena',
-      sport: 'Basketball',
-      price: 2000,
-      rating: 4.7,
-      location: 'Whitefield',
-      image: '/api/placeholder/300/200',
-    },
-  ];
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingSports(true);
+        const data = await getPopularSports();
+        if (!mounted) return;
+        setPopularSports((Array.isArray(data) && data.length > 0) ? data : defaultSports);
+      } catch (_e) {
+        if (mounted) setPopularSports(defaultSports);
+      } finally {
+        if (mounted) setLoadingSports(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const [featured, setFeatured] = useState<VenueSummary[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingFeatured(true);
+        const data = await getFeaturedVenues(6);
+        if (!mounted) return;
+        setFeatured(Array.isArray(data) ? data : []);
+      } catch (_e) {
+        if (mounted) setFeatured([]);
+      } finally {
+        if (mounted) setLoadingFeatured(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const features = [
     {
@@ -91,7 +120,7 @@ export const Home = () => {
   useEffect(() => {
     try {
       localStorage.setItem('quickcourt_home_comments', JSON.stringify(comments));
-    } catch {}
+    } catch { }
   }, [comments]);
 
   // Load latest comments from backend
@@ -123,7 +152,7 @@ export const Home = () => {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
@@ -131,14 +160,54 @@ export const Home = () => {
         <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
         {/* Gradient + multiply layer to blend photo and UI, adds night realism */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent dark:from-black/80 dark:via-black/60 dark:to-black/10 mix-blend-multiply" />
-        
+
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]">
-            Book Your Perfect{' '}
-            <span className="text-gradient-primary">Sports Court</span>
-          </h1>
+          <div role="heading" aria-level={1} className="leading-tight">
+            <SplitText
+              text="Book Your Perfect"
+              className="block text-4xl md:text-6xl font-bold text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+              delay={60}
+              duration={0.5}
+              ease="power3.out"
+              splitType="chars"
+              from={{ opacity: 0, y: 40 }}
+              to={{ opacity: 1, y: 0 }}
+              threshold={0.15}
+              rootMargin="-80px"
+              textAlign="center"
+            />
+            <div className="text-4xl md:text-6xl font-extrabold leading-tight">
+              <SplitText
+                text="Sports"
+                className="inline-block split-gradient-sports drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+                delay={60}
+                duration={0.5}
+                ease="power3.out"
+                splitType="chars"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.15}
+                rootMargin="-80px"
+                textAlign="center"
+              />
+              {' '}
+              <SplitText
+                text="Court"
+                className="inline-block split-gradient-court drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+                delay={60}
+                duration={0.5}
+                ease="power3.out"
+                splitType="chars"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.15}
+                rootMargin="-80px"
+                textAlign="center"
+              />
+            </div>
+          </div>
           <p className="text-xl text-gray-200 max-w-2xl mx-auto drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
-            Discover and book local sports facilities instantly. Join matches, 
+            Discover and book local sports facilities instantly. Join matches,
             meet players, and elevate your game.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -149,9 +218,9 @@ export const Home = () => {
               </Button>
             </Link>
             <Link to="/venues">
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="text-lg px-8 border-white/30 text-white bg-transparent hover:bg-white/10 focus:ring-2 focus:ring-white/40"
               >
                 <MapPin className="mr-2 h-5 w-5" />
@@ -207,21 +276,35 @@ export const Home = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {popularSports.map((sport, index) => (
-              <Link key={index} to={`/venues?sport=${sport.name.toLowerCase()}`}>
-                <Card className="card-gradient hover-lift hover-grow border-border/50 cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-4xl mb-3">{sport.icon}</div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      {sport.name}
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {sport.venues} venues
-                    </Badge>
-                  </CardContent>
+            {loadingSports ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="border-border/50 animate-pulse">
+                  <CardContent className="p-6 h-28" />
                 </Card>
-              </Link>
-            ))}
+              ))
+            ) : (
+              popularSports.map((sport, index) => {
+                const key = String(sport.name || '').toLowerCase().replace(/\s+/g, '');
+                const icon = sportIcon[key] || '🎯';
+                // Link uses the exact sport label to match DB filter
+                const query = encodeURIComponent(String(sport.name));
+                return (
+                  <Link key={index} to={`/venues?sport=${query}`}>
+                    <Card className="card-gradient hover-lift border-border/50 cursor-pointer">
+                      <CardContent className="p-6 text-center">
+                        <div className="text-4xl mb-3">{icon}</div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                          {sport.name}
+                        </h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {sport.venues} venues
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -239,43 +322,71 @@ export const Home = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {featuredVenues.map((venue) => (
-              <Link key={venue.id} to={`/venues/${venue.id}`}>
-                <Card className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
-                  <div className="h-48 bg-muted/50 flex items-center justify-center">
-                    <span className="text-muted-foreground">Venue Image</span>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {venue.name}
-                      </h3>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 text-warning fill-current" />
-                        <span className="text-sm text-muted-foreground">
-                          {venue.rating}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="mb-3">
-                      {venue.sport}
-                    </Badge>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{venue.location}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-bold text-secondary">
-                          ₹{venue.price}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/hr</span>
-                      </div>
-                    </div>
-                  </CardContent>
+            {loadingFeatured ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="border-border/50 animate-pulse overflow-hidden">
+                  <div className="h-48 bg-muted/40" />
+                  <CardContent className="p-6 h-36" />
                 </Card>
-              </Link>
-            ))}
+              ))
+            ) : featured.length === 0 ? (
+              <div className="col-span-3 text-center text-muted-foreground">
+                No venues yet. Check back soon!
+              </div>
+            ) : (
+              featured.map((venue) => {
+                const primaryPhoto = venue.photos && venue.photos[0];
+                const sportLabel = Array.isArray(venue.sports) && venue.sports.length > 0 ? venue.sports[0] : 'Multi-sport';
+                const locLabel = venue.city || venue.address || '';
+                const price = venue.pricePerHour;
+                const rating = venue.rating ?? '-';
+                return (
+                  <Link key={venue._id} to={`/venues/${venue._id}`}>
+                    <Card className="card-gradient hover-lift border-border/50 overflow-hidden">
+                      <div className="h-48 bg-muted/50 flex items-center justify-center">
+                        {primaryPhoto ? (
+                          <img src={primaryPhoto} alt={venue.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-muted-foreground">Venue Image</span>
+                        )}
+                      </div>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-lg font-semibold text-foreground">
+                            {venue.name}
+                          </h3>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 text-warning fill-current" />
+                            <span className="text-sm text-muted-foreground">
+                              {rating}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="mb-3">
+                          {sportLabel}
+                        </Badge>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center text-muted-foreground">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span className="text-sm">{locLabel}</span>
+                          </div>
+                          <div className="text-right">
+                            {typeof price === 'number' ? (
+                              <>
+                                <span className="text-lg font-bold text-secondary">₹{price}</span>
+                                <span className="text-sm text-muted-foreground">/hr</span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">View pricing</span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })
+            )}
           </div>
 
           <div className="text-center mt-12">
@@ -306,7 +417,7 @@ export const Home = () => {
               </Button>
             </Link>
             <Link to="/venues">
-              <Button 
+              <Button
                 size="lg"
                 className="text-lg px-8 bg-white text-primary hover:bg-gray-100 focus:ring-2 focus:ring-white/40"
               >
@@ -323,7 +434,7 @@ export const Home = () => {
           <Card className="border-border/50">
             <CardHeader className="items-center text-center py-2">
               <CardTitle className="text-center">What our Customers
- Say about QuickCourt</CardTitle>
+                Say about QuickCourt</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <form

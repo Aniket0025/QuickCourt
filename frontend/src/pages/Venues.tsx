@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
 import { getUserLocation, geocodeNominatim, haversineKm, LatLng } from '@/lib/geo';
 
 export const Venues = () => {
+  const location = useLocation();
   type AvailableSlotRaw = { start?: string; end?: string; dateTime?: string };
   type CourtRaw = { _id: string; pricePerHour?: number; outdoor?: boolean; availableSlots?: AvailableSlotRaw[] };
   type VenueRaw = {
@@ -42,12 +43,21 @@ export const Venues = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sportParam = params.get('sport');
+    if (sportParam) {
+      setSelectedSport(sportParam.toLowerCase());
+    }
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        const res = await listVenues();
-        const data = ((res as { data?: VenueRaw[] } | null)?.data) ?? (Array.isArray(res) ? (res as VenueRaw[]) : []);
+        const sport = selectedSport !== 'all' ? selectedSport : undefined;
+        const res = await listVenues(sport ? { sport } : undefined);
+        const data = (res as any)?.data || [];
         if (!mounted) return;
         setVenues(data);
       } catch (e: unknown) {
@@ -60,9 +70,8 @@ export const Venues = () => {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [selectedSport]);
 
-  // Compute Hot Now / Chill Now using first court as proxy
   useEffect(() => {
     (async () => {
       if (!venues?.length) return;
@@ -95,7 +104,6 @@ export const Venues = () => {
     })();
   }, [venues]);
 
-  // Acquire user location when Near Me toggled on
   useEffect(() => {
     (async () => {
       if (!nearMe) return;
@@ -106,9 +114,19 @@ export const Venues = () => {
     })();
   }, [nearMe]);
 
-  // POIs are now provided by GoogleMapView via onPoisUpdate; no direct fetch here
 
-  // Ensure venues have coordinates: use existing lat/lng, else geocode address
+  useEffect(() => {
+    (async () => {
+      if (!nearMe || !userLoc) { setPois([]); return; }
+      try {
+        const data = await fetchSportsPOIsOverpass(userLoc, radiusKm);
+        setPois(data);
+      } catch {
+        setPois([]);
+      }
+    })();
+  }, [nearMe, userLoc, radiusKm]);
+
   useEffect(() => {
     (async () => {
       const updates: { idx: number; lat: number; lng: number }[] = [];
@@ -142,18 +160,23 @@ export const Venues = () => {
     return venues.map((v: VenueRaw) => {
       const courts: CourtRaw[] = Array.isArray(v.courts) ? v.courts : [];
       const price = courts.length ? Math.min(...courts.map((c: CourtRaw) => c.pricePerHour || 0)) : 0;
-      const reviews = Array.isArray(v.reviews) ? v.reviews : [] as { rating?: number }[];
+      const reviews = Array.isArray(v.reviews) ? v.reviews as { rating?: number }[] : [];
       const rating = reviews.length
         ? Number((reviews.reduce((a: number, r: { rating?: number }) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
-        : 4.5;
+        : undefined;
       const available = courts.some((c: CourtRaw) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
       const coord: LatLng | null = (typeof v.lat === 'number' && typeof v.lng === 'number') ? { lat: v.lat, lng: v.lng } : null;
       const distanceKm = (nearMe && userLoc && coord) ? Number(haversineKm(userLoc, coord).toFixed(2)) : undefined;
+      const allSportsLower = new Set([
+        ...((v.sports || []) as string[]).map((s) => String(s).toLowerCase()),
+        ...courts.map((c: any) => String((c as any).sport || '').toLowerCase()),
+      ].filter(Boolean));
+      const primarySport = (v.sports && v.sports[0]) || ((courts as any)[0]?.sport) || 'Multi-sport';
       return {
         id: v._id,
         name: v.name,
-        sports: v.sports || [],
-        sport: (v.sports && v.sports[0]) || 'Multi-sport',
+        sports: Array.from(allSportsLower),
+        sport: primarySport,
         price,
         rating,
         location: v.address,
@@ -187,7 +210,6 @@ export const Venues = () => {
     return filteredVenues;
   }, [filteredVenues, nearMe]);
 
-  // Derived POIs based on filter
   const filteredPois = useMemo(() => {
     if (poiFilter === 'all') return pois;
     const normalize = (k?: string): string => {
@@ -221,14 +243,18 @@ export const Venues = () => {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search venues or locations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-background/50"
               />
             </div>
 
-            <Select value={selectedSport} onValueChange={setSelectedSport}>
+            <Select value={selectedSport} onValueChange={(val) => {
+              setSelectedSport(val);
+              const params = new URLSearchParams(location.search);
+              if (val === 'all') params.delete('sport'); else params.set('sport', val);
+              navigate({ search: params.toString() }, { replace: true });
+            }}>
               <SelectTrigger className="bg-background/50">
                 <SelectValue placeholder="Sport Type" />
               </SelectTrigger>
@@ -311,10 +337,12 @@ export const Venues = () => {
                   <h3 className="text-xl font-semibold text-foreground line-clamp-1">
                     {venue.name}
                   </h3>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 text-warning fill-current" />
-                    <span className="text-sm font-medium">{venue.rating}</span>
-                  </div>
+                  {venue.rating !== undefined && (
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-warning fill-current" />
+                      <span className="text-sm font-medium">{venue.rating}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">

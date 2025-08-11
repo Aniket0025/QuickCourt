@@ -17,7 +17,9 @@ async function bootstrap() {
 //4
   const app = express();
   app.use(cors({ origin: ORIGIN, credentials: true }));
-  app.use(express.json());
+  // Increase body size limits to avoid 413 Payload Too Large for admin/owner forms
+  app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   app.use('/api', routes);

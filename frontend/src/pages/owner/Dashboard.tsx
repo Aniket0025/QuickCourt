@@ -3,13 +3,41 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { OwnerStatsCards } from "./components/OwnerStatsCards";
 import { OwnerBookingActivity } from "./components/OwnerBookingActivity";
+import { listMyVenues } from "@/lib/api";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
-  const [venueId] = useState<string>(() => localStorage.getItem('quickcourt_owner_venue_id') || '');
+  const [venueId, setVenueId] = useState<string>(() => localStorage.getItem('quickcourt_owner_venue_id') || '');
+
+  // Ensure we have a valid venueId; if missing/invalid, auto-pick the owner's first venue
+  useEffect(() => {
+    const isValidObjectId = (id?: string) => !!id && /^[a-f\d]{24}$/i.test(id);
+    async function ensureVenue() {
+      try {
+        const mine = await listMyVenues();
+        const arr = Array.isArray((mine as any)?.data) ? (mine as any).data : [];
+        const ids: string[] = arr.map((v: any) => v?._id || v?.id).filter(Boolean);
+        // If current is invalid format OR not in my venues, pick first available
+        if (ids.length === 0) {
+          // No venues owned: clear any stale id so hooks won't fire
+          localStorage.removeItem('quickcourt_owner_venue_id');
+          if (venueId) setVenueId('');
+        } else if (!isValidObjectId(venueId) || !ids.includes(venueId)) {
+          const id = ids[0];
+          if (isValidObjectId(id)) {
+            localStorage.setItem('quickcourt_owner_venue_id', id);
+            setVenueId(id);
+          }
+        }
+      } catch {
+        // ignore; UI shows placeholders
+      }
+    }
+    ensureVenue();
+  }, [venueId]);
 
   if (!user) return <Navigate to="/auth" replace />;
   if (user.role !== "facility_owner") {
@@ -34,7 +62,6 @@ const OwnerDashboard = () => {
         {venueId ? (
           <section className="space-y-6">
             <OwnerStatsCards venueId={venueId} />
-            <OwnerBookingActivity venueId={venueId} />
           </section>
         ) : (
           <section>

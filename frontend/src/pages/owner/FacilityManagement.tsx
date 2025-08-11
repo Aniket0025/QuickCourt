@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { OwnerStatsCards } from './components/OwnerStatsCards';
@@ -12,6 +12,7 @@ import { OwnerBookingActivity } from './components/OwnerBookingActivity';
 
 const FacilityManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
   const [venueId, setVenueId] = useState<string>('');
   const [name, setName] = useState('');
@@ -82,6 +83,8 @@ const FacilityManagement = () => {
         localStorage.setItem('quickcourt_owner_venue_id', id);
       }
       toast.success(creating ? 'Venue created' : 'Venue updated');
+      // Redirect owner to dashboard after saving
+      navigate('/dashboard/facility', { replace: true });
     } catch (e) {
       console.error(e);
       toast.error('Failed to save venue');
