@@ -25,7 +25,10 @@ const venueSchema = new Schema({
   about: { type: String },
   photos: [{ type: String }],
   reviews: [reviewSchema],
-  courts: [courtSchema]
+  courts: [courtSchema],
+  // approval workflow
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  approvedAt: { type: Date }
 }, { timestamps: true });
 
 export type Venue = InferSchemaType<typeof venueSchema> & { _id: string };

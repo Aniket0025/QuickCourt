@@ -63,9 +63,6 @@ const AdminDashboard = () => {
                 <Button asChild variant="secondary" size="sm">
                   <Link to="/admin/facility-approval">Facility Approval</Link>
                 </Button>
-                <Button asChild variant="secondary" size="sm">
-                  <Link to="/admin/users">User Management</Link>
-                </Button>
               </div>
             </CardContent>
           </Card>

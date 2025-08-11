@@ -56,6 +56,27 @@ export async function listBookings(params?: { userId?: string }) {
   return apiFetch(`/api/bookings${qs}`, { method: 'GET' });
 }
 
+export type Booking = {
+  _id: string;
+  userId: string;
+  venueId: string;
+  courtId: string;
+  courtName?: string;
+  sport?: string;
+  dateTime: string | Date;
+  durationHours: number;
+  price: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  createdAt?: string;
+};
+
+export async function listVenueBookings(params: { venueId: string; limit?: number }): Promise<Booking[]> {
+  const q = new URLSearchParams({ venueId: params.venueId });
+  if (params.limit) q.set('limit', String(params.limit));
+  const res = await apiFetch(`/api/bookings?${q.toString()}`, { method: 'GET' });
+  return (res as any)?.data || [];
+}
+
 export async function cancelBookingApi(id: string) {
   return apiFetch(`/api/bookings/${id}/cancel`, { method: 'PATCH' });
 }
@@ -78,6 +99,20 @@ export async function listMyVenues() {
 
 export async function getVenue(id: string) {
   return apiFetch(`/api/venues/${id}`, { method: 'GET' });
+}
+
+// Admin facility approval APIs
+export async function getPendingVenues(): Promise<VenueSummary[]> {
+  const res = await apiFetch('/api/admin/pending-venues', { method: 'GET' });
+  return (res as any)?.data || [];
+}
+
+export async function approveVenue(id: string) {
+  return apiFetch(`/api/admin/venues/${id}/approve`, { method: 'PATCH' });
+}
+
+export async function rejectVenue(id: string) {
+  return apiFetch(`/api/admin/venues/${id}/reject`, { method: 'PATCH' });
 }
 
 export async function createCourt(venueId: string, payload: { name: string; sport: string; pricePerHour: number; operatingHours: string; }) {
@@ -105,6 +140,7 @@ export type VenueSummary = {
   rating?: number;
   pricePerHour?: number;
   createdAt?: string;
+  status?: 'pending' | 'approved' | 'rejected';
 };
 
 export async function getFeaturedVenues(limit = 6): Promise<VenueSummary[]> {

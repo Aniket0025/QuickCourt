@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { OwnerStatsCards } from "./components/OwnerStatsCards";
 import { OwnerBookingActivity } from "./components/OwnerBookingActivity";
-import { listMyVenues } from "@/lib/api";
+import { listMyVenues, listVenueBookings, type Booking } from "@/lib/api";
 
 const OwnerDashboard = () => {
   const { user } = useAuth();
@@ -121,25 +121,9 @@ const OwnerDashboard = () => {
               <CardTitle>Recent Bookings</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-3 text-sm">
-                {[
-                  { when: 'Today 5:00 PM', item: 'Court 1 · Badminton', who: 'Ananya S.', price: 1200, status: 'confirmed' },
-                  { when: 'Today 7:30 PM', item: 'Turf A · Football (5v5)', who: 'Rahul M.', price: 2500, status: 'pending' },
-                  { when: 'Thu 6:00 PM', item: 'Table 2 · Table Tennis', who: 'Karthik P.', price: 600, status: 'confirmed' },
-                  { when: 'Fri 8:00 PM', item: 'Court 3 · Badminton', who: 'Sneha R.', price: 1200, status: 'cancelled' },
-                ].map((b, i) => (
-                  <li key={i} className="flex items-center justify-between rounded-md border border-border/50 p-3 bg-card/50">
-                    <div>
-                      <div className="font-medium text-foreground">{b.item}</div>
-                      <div className="text-xs text-muted-foreground">{b.when} · {b.who}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold">₹ {b.price.toLocaleString()}</div>
-                      <div className={`text-xs ${b.status === 'confirmed' ? 'text-secondary' : b.status === 'cancelled' ? 'text-destructive' : 'text-warning'}`}>{b.status}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {venueId ? <RecentBookingsList venueId={venueId} /> : (
+                <div className="text-sm text-muted-foreground">Create or save your facility to see recent bookings.</div>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -149,3 +133,89 @@ const OwnerDashboard = () => {
 };
 
 export default OwnerDashboard;
+
+// Recent bookings list with lightweight polling (10s)
+function RecentBookingsList({ venueId }: { venueId: string }) {
+  const [items, setItems] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>();
+
+  async function load() {
+    try {
+      setError(undefined);
+      const data = await listVenueBookings({ venueId, limit: 8 });
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    let cancelled = false;
+    let t: any;
+    (async () => {
+      if (!cancelled) await load();
+      t = setInterval(() => { if (!cancelled) load(); }, 10000);
+    })();
+    return () => { cancelled = true; if (t) clearInterval(t); };
+  }, [venueId]);
+
+  const fmtWhen = (dt: string | Date) => {
+    const d = new Date(dt);
+    const opts: Intl.DateTimeFormatOptions = { weekday: 'short', hour: 'numeric', minute: '2-digit' };
+    return d.toLocaleString(undefined, opts);
+  };
+
+  if (loading) {
+    return (
+      <ul className="space-y-3 text-sm">
+        {[...Array(4)].map((_, i) => (
+          <li key={i} className="flex items-center justify-between rounded-md border border-border/50 p-3 bg-card/50">
+            <div>
+              <div className="h-4 w-40 bg-muted rounded mb-2" />
+              <div className="h-3 w-24 bg-muted rounded" />
+            </div>
+            <div className="text-right">
+              <div className="h-4 w-16 bg-muted rounded mb-2 ml-auto" />
+              <div className="h-3 w-12 bg-muted rounded ml-auto" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-red-500">{error} <button className="underline" onClick={load}>Retry</button></div>
+    );
+  }
+
+  if (!items.length) {
+    return <div className="text-sm text-muted-foreground">No recent bookings.</div>;
+  }
+
+  return (
+    <ul className="space-y-3 text-sm">
+      {items.map((b) => {
+        const leftTitle = `${b.courtName ?? 'Court'}${b.sport ? ` · ${b.sport}` : ''}`;
+        const price = Number(b.price || 0);
+        return (
+          <li key={b._id} className="flex items-center justify-between rounded-md border border-border/50 p-3 bg-card/50">
+            <div>
+              <div className="font-medium text-foreground">{leftTitle}</div>
+              <div className="text-xs text-muted-foreground">{fmtWhen(b.dateTime)}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-semibold">₹ {price.toLocaleString()}</div>
+              <div className={`text-xs ${b.status === 'confirmed' ? 'text-secondary' : b.status === 'cancelled' ? 'text-destructive' : 'text-warning'}`}>{b.status}</div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
