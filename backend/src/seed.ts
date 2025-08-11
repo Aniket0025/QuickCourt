@@ -6,7 +6,7 @@ import { UserModel } from './models/User';
 async function run() {
   const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/QuickCourt';
   await connectDB(MONGO_URI);
-
+//34
   const email = 'aniket93yadav@gmail.com';
   const password = 'Aniket@0025';
 
