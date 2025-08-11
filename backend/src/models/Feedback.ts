@@ -19,4 +19,7 @@ const FeedbackSchema = new Schema<FeedbackDoc>(
   { timestamps: true }
 );
 
+// Prevent duplicate feedback per user per booking
+FeedbackSchema.index({ userId: 1, bookingId: 1 }, { unique: true });
+
 export const FeedbackModel = mongoose.models.Feedback || mongoose.model<FeedbackDoc>('Feedback', FeedbackSchema);
