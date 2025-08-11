@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Users, Zap, Shield, Star, CheckCircle2, MessageCircle, TrendingUp, Clock, Heart, User, PenSquare, Trash2 } from 'lucide-react';
 import SplitText from '@/components/SplitText';
+import { Calendar, MapPin, Star, Users, Zap, Shield, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import heroImage from '@/assets/hero-sports.jpg';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +67,9 @@ export const Home = () => {
     },
   ];
 
+  // Backend API base URL
+  const API_BASE = (import.meta as any).env?.VITE_API_URL?.replace(/\/$/, '') || '';
+
   const [comments, setComments] = useState<{ name: string; message: string; createdAt: string; topic?: string }[]>(() => {
     try {
       const raw = localStorage.getItem('quickcourt_home_comments');
@@ -77,18 +81,51 @@ export const Home = () => {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [topic, setTopic] = useState('');
+  const commentsRowRef = useRef<HTMLDivElement | null>(null);
+  const scrollComments = (dir: 'left' | 'right') => {
+    const el = commentsRowRef.current;
+    if (!el) return;
+    const delta = dir === 'left' ? -400 : 400;
+    el.scrollBy({ left: delta, behavior: 'smooth' });
+  };
 
+  // Persist comments locally for offline quick load
   useEffect(() => {
     try {
       localStorage.setItem('quickcourt_home_comments', JSON.stringify(comments));
-    } catch {}
+    } catch { }
   }, [comments]);
+
+  // Load latest comments from backend
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/comments`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) return; // keep local data if backend not available
+        const json = await res.json();
+        if (json && Array.isArray(json.data)) {
+          setComments(json.data.map((c: any) => ({
+            name: c.name,
+            message: c.message,
+            topic: c.topic || undefined,
+            createdAt: c.createdAt || new Date().toISOString(),
+          })));
+        }
+      } catch {
+        // ignore network errors, fall back to localStorage
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
@@ -96,7 +133,7 @@ export const Home = () => {
         <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
         {/* Gradient + multiply layer to blend photo and UI, adds night realism */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent dark:from-black/80 dark:via-black/60 dark:to-black/10 mix-blend-multiply" />
-        
+
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto">
           <div role="heading" aria-level={1} className="leading-tight">
             <SplitText
@@ -143,7 +180,7 @@ export const Home = () => {
             </div>
           </div>
           <p className="text-xl text-gray-200 max-w-2xl mx-auto drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
-            Discover and book local sports facilities instantly. Join matches, 
+            Discover and book local sports facilities instantly. Join matches,
             meet players, and elevate your game.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -154,9 +191,9 @@ export const Home = () => {
               </Button>
             </Link>
             <Link to="/venues">
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="text-lg px-8 border-white/30 text-white bg-transparent hover:bg-white/10 focus:ring-2 focus:ring-white/40"
               >
                 <MapPin className="mr-2 h-5 w-5" />
@@ -311,7 +348,7 @@ export const Home = () => {
               </Button>
             </Link>
             <Link to="/venues">
-              <Button 
+              <Button
                 size="lg"
                 className="text-lg px-8 bg-white text-primary hover:bg-gray-100 focus:ring-2 focus:ring-white/40"
               >
@@ -323,63 +360,121 @@ export const Home = () => {
       </section>
 
       {/* Comments Section */}
-      <section className="py-16 px-4 bg-card/40">
-        <div className="container mx-auto max-w-4xl">
+      <section className="py-3 px-4 bg-card/40">
+        <div className="container mx-auto max-w-5xl">
           <Card className="border-border/50">
-            <CardHeader className="items-center text-center">
+            <CardHeader className="items-center text-center py-2">
               <CardTitle className="text-center">What our Customers
-Say about QuickCourt</CardTitle>
+                Say about QuickCourt</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-3">
               <form
-                className="grid gap-4"
+                className="grid gap-2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   const nm = name.trim();
                   const msg = message.trim();
                   const tp = topic.trim();
                   if (!nm || !msg) return;
-                  setComments((prev) => [
-                    { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
-                    ...prev,
-                  ]);
-                  setName('');
-                  setMessage('');
-                  setTopic('');
+                  (async () => {
+                    try {
+                      const res = await fetch(`${API_BASE}/api/comments`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: nm, message: msg, topic: tp || undefined }),
+                      });
+                      if (res.ok) {
+                        const json = await res.json();
+                        const data = json?.data || {};
+                        setComments((prev) => [
+                          {
+                            name: data.name ?? nm,
+                            message: data.message ?? msg,
+                            topic: data.topic || (tp || undefined),
+                            createdAt: data.createdAt ?? new Date().toISOString(),
+                          },
+                          ...prev,
+                        ]);
+                      } else {
+                        // fallback: optimistic add
+                        setComments((prev) => [
+                          { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
+                          ...prev,
+                        ]);
+                      }
+                    } catch {
+                      // network error fallback
+                      setComments((prev) => [
+                        { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
+                        ...prev,
+                      ]);
+                    } finally {
+                      setName('');
+                      setMessage('');
+                      setTopic('');
+                    }
+                  })();
                 }}
               >
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-                  <Input
-                    placeholder="Optional topic (e.g., Badminton courts)"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                  />
+                <div className="grid gap-2">
+                  <Input className="h-9" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <Textarea
                   placeholder="Share your experience or suggestions..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  rows={4}
+                  rows={2}
+                  className="min-h-[56px]"
                 />
                 <div className="flex justify-center">
-                  <Button type="submit" className="btn-bounce">Post Comment</Button>
+                  <Button type="submit" className="btn-bounce h-9 px-4">Post Comment</Button>
                 </div>
               </form>
 
-              <div className="space-y-4">
+              <div className="relative mt-1">
                 {comments.length === 0 ? (
                   <p className="text-muted-foreground text-sm">No comments yet. Be the first to share your thoughts!</p>
                 ) : (
-                  comments.map((c, idx) => (
-                    <div key={idx} className="p-4 rounded-lg border border-border/50 bg-background/60">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-foreground">{c.name}</span>
-                        <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Scroll left"
+                      onClick={() => scrollComments('left')}
+                      className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-background/80 border border-border/50 shadow hover:bg-background"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <div
+                      ref={commentsRowRef}
+                      className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      <div className="flex gap-3 snap-x snap-mandatory">
+                        {comments.map((c, idx) => (
+                          <div
+                            key={idx}
+                            className="snap-start min-w-[280px] md:min-w-[360px] p-3 rounded-lg border border-border/50 bg-background/60"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-foreground">{c.name}</span>
+                              <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                            </div>
+                            {c.topic ? (
+                              <div className="mb-1 text-xs text-muted-foreground">Topic: {c.topic}</div>
+                            ) : null}
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{c.message}</p>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{c.message}</p>
                     </div>
-                  ))
+                    <button
+                      type="button"
+                      aria-label="Scroll right"
+                      onClick={() => scrollComments('right')}
+                      className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-background/80 border border-border/50 shadow hover:bg-background"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
                 )}
               </div>
             </CardContent>
