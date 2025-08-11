@@ -8,8 +8,8 @@ import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
-import OSMMap, { MapVenue } from '@/components/map/OSMMap';
-import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass, SportsPOI } from '@/lib/geo';
+import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
+import { getUserLocation, geocodeNominatim, haversineKm, LatLng } from '@/lib/geo';
 
 export const Venues = () => {
   type AvailableSlotRaw = { start?: string; end?: string; dateTime?: string };
@@ -36,7 +36,7 @@ export const Venues = () => {
   const [nearMe, setNearMe] = useState(false);
   const [userLoc, setUserLoc] = useState<LatLng | null>(null);
   const [radiusKm, setRadiusKm] = useState(8);
-  const [pois, setPois] = useState<SportsPOI[]>([]);
+  const [pois, setPois] = useState<GMapPOI[]>([]);
   const [poiFilter, setPoiFilter] = useState<'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport'>('all');
   const [customCenter, setCustomCenter] = useState<LatLng | null>(null);
   const navigate = useNavigate();
@@ -102,21 +102,11 @@ export const Venues = () => {
       const loc = await getUserLocation();
       if (!loc) toast('Location unavailable');
       setUserLoc(loc);
+      if (loc) setCustomCenter(loc);
     })();
   }, [nearMe]);
 
-  // Fetch public sports POIs from OSM Overpass when Near Me is active
-  useEffect(() => {
-    (async () => {
-      if (!nearMe || !userLoc) { setPois([]); return; }
-      try {
-        const data = await fetchSportsPOIsOverpass(userLoc, radiusKm);
-        setPois(data);
-      } catch {
-        setPois([]);
-      }
-    })();
-  }, [nearMe, userLoc, radiusKm]);
+  // POIs are now provided by GoogleMapView via onPoisUpdate; no direct fetch here
 
   // Ensure venues have coordinates: use existing lat/lng, else geocode address
   useEffect(() => {
@@ -378,94 +368,93 @@ export const Venues = () => {
             </Card>
           ))}
 
-            {!loading && sortedVenues.length > 0 && (
-              <div className="mt-8">
-                <OSMMap
-                  venues={sortedVenues.filter(v=> typeof v.lat==='number' && typeof v.lng==='number').map(v=> ({
-                    id: v.id,
-                    name: v.name,
-                    lat: v.lat as number,
-                    lng: v.lng as number,
-                    price: v.price,
-                    rush: v.rushStatus,
-                  })) as MapVenue[]}
-                  user={userLoc}
-                  center={customCenter || undefined}
-                  height={360}
-                  onNavigate={(id)=>navigate(`/venues/${id}`)}
-                  pois={filteredPois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
+        {/* Map and controls below the grid */}
+        {!loading && sortedVenues.length > 0 && (
+          <div className="mt-8">
+            <GoogleMapView
+              venues={sortedVenues
+                .filter(v=> typeof v.lat==='number' && typeof v.lng==='number')
+                .map(v=> ({ id: v.id, name: v.name, lat: v.lat as number, lng: v.lng as number, price: v.price, rush: v.rushStatus })) as GMapVenue[]}
+              user={userLoc || undefined}
+              center={customCenter || undefined}
+              height={360}
+              onNavigate={(id)=>navigate(`/venues/${id}`)}
+              pois={pois}
+              radiusKm={radiusKm}
+              poiFilter={poiFilter}
+              onPoisUpdate={setPois}
+            />
+
+            {/* Controls under map */}
+            <div className="mt-4 flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={nearMe} onChange={(e)=>setNearMe(e.target.checked)} />
+                  Near Me
+                </label>
+                <div className="flex items-center gap-2 text-sm">
+                  <span>{radiusKm} km</span>
+                  <input
+                    type="range"
+                    min={2}
+                    max={25}
+                    step={1}
+                    value={radiusKm}
+                    onChange={(e)=>setRadiusKm(Number(e.target.value))}
+                    className="w-40 cursor-pointer"
+                  />
+                </div>
+                <select
+                  value={poiFilter}
+                  onChange={(e)=>{
+                    const v = e.target.value as 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
+                    setPoiFilter(v);
+                  }}
+                  className="text-sm bg-background/50 border rounded px-2 py-1"
+                  title="Filter public sports places"
+                >
+                  <option value="all">All POIs</option>
+                  <option value="stadium">Stadiums</option>
+                  <option value="sports_centre">Sports centres</option>
+                  <option value="pitch">Pitches</option>
+                  <option value="fitness_centre">Fitness centres</option>
+                  <option value="sport">Other sport-tag</option>
+                </select>
+              </div>
+
+              {/* Map search / recenter */}
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
+                <input
+                  value={locationQuery}
+                  onChange={(e)=>setLocationQuery(e.target.value)}
+                  placeholder="Search place or paste lat,lng"
+                  className="text-sm bg-background/50 border rounded px-2 py-1 w-full md:w-64"
                 />
-
-                {/* Controls moved below map */}
-                <div className="mt-4 flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={nearMe} onChange={(e)=>setNearMe(e.target.checked)} />
-                      Near Me
-                    </label>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span>{radiusKm} km</span>
-                      <input
-                        type="range"
-                        min={2}
-                        max={25}
-                        step={1}
-                        value={radiusKm}
-                        onChange={(e)=>setRadiusKm(Number(e.target.value))}
-                        className="w-40 cursor-pointer"
-                      />
-                    </div>
-                    <select
-                      value={poiFilter}
-                      onChange={(e)=>{
-                        const v = e.target.value as 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
-                        setPoiFilter(v);
-                      }}
-                      className="text-sm bg-background/50 border rounded px-2 py-1"
-                      title="Filter public sports places"
-                    >
-                      <option value="all">All POIs</option>
-                      <option value="stadium">Stadiums</option>
-                      <option value="sports_centre">Sports centres</option>
-                      <option value="pitch">Pitches</option>
-                      <option value="fitness_centre">Fitness centres</option>
-                      <option value="sport">Other sport-tag</option>
-                    </select>
-                  </div>
-
-                  {/* Map search / recenter */}
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
-                    <input
-                      value={locationQuery}
-                      onChange={(e)=>setLocationQuery(e.target.value)}
-                      placeholder="Search place or paste lat,lng"
-                      className="text-sm bg-background/50 border rounded px-2 py-1 w-full md:w-64"
-                    />
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={async ()=>{
-                        const q = locationQuery.trim();
-                        if (!q) return;
-                        const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
-                        if (m) {
-                          const lat = Number(m[1]);
-                          const lng = Number(m[2]);
-                          if (isFinite(lat) && isFinite(lng)) { setCustomCenter({ lat, lng }); return; }
-                        }
-                        const ll = await geocodeNominatim(q);
-                        if (ll) setCustomCenter(ll);
-                        else toast('Place not found');
-                      }}>Search</Button>
-                      <Button variant="secondary" onClick={async ()=>{
-                        const loc = await getUserLocation();
-                        if (loc) { setUserLoc(loc); setCustomCenter(loc); }
-                        else toast('Location unavailable');
-                      }}>Use My Location</Button>
-                      <Button variant="ghost" onClick={()=>{ setCustomCenter(null); setLocationQuery(''); }}>Clear</Button>
-                    </div>
-                  </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={async ()=>{
+                    const q = locationQuery.trim();
+                    if (!q) return;
+                    const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                    if (m) {
+                      const lat = Number(m[1]);
+                      const lng = Number(m[2]);
+                      if (isFinite(lat) && isFinite(lng)) { setCustomCenter({ lat, lng }); return; }
+                    }
+                    const ll = await geocodeNominatim(q);
+                    if (ll) setCustomCenter(ll);
+                    else toast('Place not found');
+                  }}>Search</Button>
+                  <Button variant="secondary" onClick={async ()=>{
+                    const loc = await getUserLocation();
+                    if (loc) { setUserLoc(loc); setCustomCenter(loc); }
+                    else toast('Location unavailable');
+                  }}>Use My Location</Button>
+                  <Button variant="ghost" onClick={()=>{ setCustomCenter(null); setLocationQuery(''); }}>Clear</Button>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
         </div>
 
