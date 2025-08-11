@@ -58,7 +58,7 @@ const About = () => {
         {/* WhatsApp Community QR Section */}
         <Card className="card-gradient border-border/50 md:col-span-2">
           <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-1">
                 <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                   <QrCode className="h-5 w-5 text-primary" />
@@ -70,28 +70,22 @@ const About = () => {
                 {/* Optional: If you share a direct invite link, we can also add a button here. */}
               </div>
               <div className="w-full md:w-auto text-center">
-                <img
-                  src="/whatsapp-community-qr.png"
-                  alt="WhatsApp Community QR code"
-                  className="mx-auto max-w-none select-none"
-                  style={{ imageRendering: 'pixelated' }}
-                  loading="eager"
-                  draggable={false}
-                  onLoad={(e) => {
-                    const img = e.currentTarget as HTMLImageElement;
-                    // Lock to the image's intrinsic pixel size to avoid any scaling
-                    img.width = img.naturalWidth;
-                    img.height = img.naturalHeight;
-                  }}
-                  onError={(e) => {
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.onerror = null;
-                    img.removeAttribute('width');
-                    img.removeAttribute('height');
-                    img.src = placeholderQr;
-                  }}
-                />
-                <p className="text-xs text-center text-muted-foreground mt-2">Scan to join</p>
+                <div className="inline-block rounded-2xl border border-border/60 bg-muted/20 p-3 shadow-lg backdrop-blur-sm">
+                  <img
+                    src="/whatsapp-community-qr.png"
+                    alt="WhatsApp Community QR code"
+                    className="mx-auto select-none rounded-xl shadow-sm ring-1 ring-border/40 w-[260px] h-[260px] md:w-[320px] md:h-[320px] object-contain"
+                    style={{ imageRendering: 'pixelated' }}
+                    loading="eager"
+                    draggable={false}
+                    onError={(e) => {
+                      const img = e.currentTarget as HTMLImageElement;
+                      img.onerror = null;
+                      img.src = placeholderQr;
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-center text-muted-foreground mt-3">Scan to join</p>
                 {/* Place your exact PNG at frontend/public/whatsapp-community-qr.png */}
               </div>
             </div>

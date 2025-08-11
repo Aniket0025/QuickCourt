@@ -5,10 +5,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 const FacilityManagement = () => {
   const { user } = useAuth();
+  const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+  const [venueId, setVenueId] = useState<string>(() => localStorage.getItem('quickcourt_owner_venue_id') || '');
+  const [name, setName] = useState('Ace Sports Complex');
+  const [address, setAddress] = useState('Koramangala, Bengaluru');
+  const [description, setDescription] = useState('Premium indoor courts with pro-grade flooring and lighting.');
+  const [sports, setSports] = useState<string[]>(['Badminton','Table Tennis']);
   const [amenities, setAmenities] = useState<string[]>([
     'Parking',
     'Locker Rooms',
@@ -35,6 +42,65 @@ const FacilityManagement = () => {
   const removeAmenity = (name: string) => {
     setAmenities(prev => prev.filter(x => x.toLowerCase() !== name.toLowerCase()));
   };
+
+  const canSave = useMemo(() => !!name && !!address && !!description, [name, address, description]);
+
+  // Preload from backend if a venue id exists
+  useEffect(() => {
+    if (!venueId) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/venues/${venueId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const v = data?.data;
+        if (!v) return;
+        if (v.name) setName(v.name);
+        if (v.address) setAddress(v.address);
+        if (v.description) setDescription(v.description);
+        if (Array.isArray(v.sports)) setSports(v.sports);
+        if (Array.isArray(v.amenities)) setAmenities(v.amenities);
+      } catch {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveChanges = async () => {
+    if (!canSave) {
+      toast.error('Please fill Name, Location and Description');
+      return;
+    }
+    const payload = {
+      name: name.trim(),
+      address: address.trim(),
+      description: description.trim(),
+      sports,
+      amenities,
+    };
+    try {
+      const creating = !venueId;
+      const res = await fetch(`${API_URL}/api/venues${creating ? '' : `/${venueId}`}`, {
+        method: creating ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        toast.error(typeof err?.error === 'string' ? err.error : 'Failed to save venue');
+        return;
+      }
+      const data = await res.json();
+      const id = data?.data?._id;
+      if (id) {
+        setVenueId(id);
+        localStorage.setItem('quickcourt_owner_venue_id', id);
+      }
+      toast.success(creating ? 'Venue created' : 'Venue updated');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save venue');
+    }
+  };
   if (!user) return <Navigate to="/auth" replace />;
   if (user.role !== 'facility_owner') return <Navigate to="/" replace />;
   return (
@@ -46,14 +112,15 @@ const FacilityManagement = () => {
             <CardTitle>Facility Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input placeholder="Name" defaultValue="Ace Sports Complex" />
-            <Input placeholder="Location" defaultValue="Koramangala, Bengaluru" />
-            <Textarea placeholder="Description" defaultValue="Premium indoor courts with pro-grade flooring and lighting." />
+            <Input placeholder="Venue ID (auto after save)" value={venueId} readOnly />
+            <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input placeholder="Location" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
             <div className="flex gap-2 flex-wrap">
-              {['Badminton','Table Tennis'].map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
+              {sports.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
             </div>
             <div className="flex gap-2">
-              <Button>Save Changes</Button>
+              <Button onClick={saveChanges} disabled={!canSave}>Save Changes</Button>
               <Button variant="outline">Upload Photos</Button>
             </div>
           </CardContent>

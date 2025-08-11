@@ -30,11 +30,11 @@ export const Navbar = () => {
           { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
           ...(user.role === 'user' ? [{ path: '/bookings', label: 'My Bookings', icon: Calendar }] : []),
         ]
-      : []),
-  ];
+      : []),
+  ];
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-lg">
+    <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-gradient-to-b from-background/80 to-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -52,19 +52,22 @@ export const Navbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-1">
             {navItems.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                className={`group relative flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                   isActive(path)
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                <span>{label}</span>
+                <span className="text-sm font-medium">{label}</span>
+                {isActive(path) && (
+                  <span className="absolute -bottom-2 left-3 right-3 h-0.5 rounded-full bg-primary/70" />
+                )}
               </Link>
             ))}
           </div>
@@ -92,7 +95,7 @@ export const Navbar = () => {
               </div>
             ) : (
               <Link to="/auth">
-                <Button className="btn-bounce bg-primary hover:bg-primary/90">
+                <Button className="btn-bounce bg-primary hover:bg-primary/90 shadow-sm">
                   <User className="h-4 w-4 mr-2" />
                   Sign In
                 </Button>
