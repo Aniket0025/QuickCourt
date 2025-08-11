@@ -127,7 +127,7 @@ export const Venues = () => {
         {/* Venues Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredVenues.map((venue) => (
-            <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
+            <Card key={venue.id} className="card-gradient hover-lift hover-grow border-border/50 overflow-hidden">
               <div className="h-48 bg-muted/50 flex items-center justify-center relative">
                 <img
                   src="https://content.jdmagicbox.com/v2/comp/bangalore/w5/080pxx80.xx80.220520212956.p3w5/catalogue/yuve-champions-academy-for-badminton-thanisandra-bangalore-sports-clubs-2408ryievv.jpg"
