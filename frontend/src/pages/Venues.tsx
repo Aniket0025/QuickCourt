@@ -6,15 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { listVenues } from '@/lib/api';
+import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 
 export const Venues = () => {
+  type CourtRaw = { _id: string; pricePerHour?: number; outdoor?: boolean; availableSlots?: any[] };
+  type VenueRaw = {
+    _id: string;
+    name: string;
+    address: string;
+    photos?: string[];
+    amenities?: string[];
+    sports?: string[];
+    courts?: CourtRaw[];
+    reviews?: { rating?: number }[];
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [venues, setVenues] = useState<any[]>([]);
+  const [venues, setVenues] = useState<VenueRaw[]>([]);
+  const [rushMap, setRushMap] = useState<Record<string, 'hot' | 'chill' | undefined>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -34,6 +46,39 @@ export const Venues = () => {
     return () => { mounted = false; };
   }, []);
 
+  // Compute Hot Now / Chill Now using first court as proxy
+  useEffect(() => {
+    (async () => {
+      if (!venues?.length) return;
+      try {
+        const now = new Date();
+        const tasks = venues.map(async (v: VenueRaw) => {
+          const first: CourtRaw | undefined = Array.isArray(v.courts) ? v.courts[0] : undefined;
+          if (!first) return { id: v._id, status: undefined as undefined | 'hot' | 'chill' };
+          try {
+            const res = await predictRush({
+              venueId: v._id,
+              courtId: first._id,
+              dateTime: now.toISOString(),
+              durationHours: 1,
+              outdoor: Boolean(first.outdoor)
+            });
+            const status: 'hot' | 'chill' | undefined = res.rushScore >= 0.7 ? 'hot' : res.rushScore <= 0.35 ? 'chill' : undefined;
+            return { id: v._id, status };
+          } catch {
+            return { id: v._id, status: undefined };
+          }
+        });
+        const results = await Promise.all(tasks);
+        const m: Record<string, 'hot' | 'chill' | undefined> = {};
+        results.forEach(r => { if (r) m[r.id] = r.status; });
+        setRushMap(m);
+      } catch (e) {
+        console.error('rush badges compute failed', e);
+      }
+    })();
+  }, [venues]);
+
   const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis'];
 
   const priceRanges = [
@@ -44,14 +89,14 @@ export const Venues = () => {
   ];
 
   const mapped = useMemo(() => {
-    return venues.map((v) => {
-      const courts = Array.isArray(v.courts) ? v.courts : [];
-      const price = courts.length ? Math.min(...courts.map((c: any) => c.pricePerHour || 0)) : 0;
-      const reviews = Array.isArray(v.reviews) ? v.reviews : [];
+    return venues.map((v: VenueRaw) => {
+      const courts: CourtRaw[] = Array.isArray(v.courts) ? v.courts : [];
+      const price = courts.length ? Math.min(...courts.map((c: CourtRaw) => c.pricePerHour || 0)) : 0;
+      const reviews = Array.isArray(v.reviews) ? v.reviews : [] as { rating?: number }[];
       const rating = reviews.length
-        ? Number((reviews.reduce((a: number, r: any) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
+        ? Number((reviews.reduce((a: number, r: { rating?: number }) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
         : 4.5;
-      const available = courts.some((c: any) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
+      const available = courts.some((c: CourtRaw) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
       return {
         id: v._id,
         name: v.name,
@@ -64,9 +109,10 @@ export const Venues = () => {
         courts: courts.length,
         available,
         photo: (Array.isArray(v.photos) && v.photos[0]) || undefined,
+        rushStatus: rushMap[v._id],
       };
     });
-  }, [venues]);
+  }, [venues, rushMap]);
 
   const filteredVenues = mapped.filter(venue => {
     const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,6 +210,17 @@ export const Venues = () => {
                   <div className="absolute inset-0 w-full h-full bg-muted" />
                 )}
                 <div className="absolute inset-0 bg-black/20" />
+                {/* Hot/Chill badges */}
+                {venue.rushStatus === 'hot' && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="destructive">Hot Now</Badge>
+                  </div>
+                )}
+                {venue.rushStatus === 'chill' && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="secondary">Chill Now</Badge>
+                  </div>
+                )}
                 {!venue.available && (
                   <div className="absolute top-2 right-2">
                     <Badge variant="destructive">Fully Booked</Badge>
