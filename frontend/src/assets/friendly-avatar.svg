@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024"
+     fill="none" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Colorful friendly avatar">
+  <defs>
+    <!-- Soft gradients -->
+    <linearGradient id="g-sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.0"/>
+      <stop offset="1" stop-color="#EC4899" stop-opacity="0.0"/>
+    </linearGradient>
+    <linearGradient id="g-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="g-shirt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+    <linearGradient id="g-shadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.0"/>
+    </linearGradient>
+    <radialGradient id="g-glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.0"/>
+    </radialGradient>
+
+    <!-- Soft shadow filter -->
+    <filter id="f-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="b"/>
+      <feOffset dx="0" dy="2" result="o"/>
+      <feComposite in="o" in2="b" operator="over" result="s"/>
+      <feColorMatrix in="s" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.25 0" />
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Cheek blush gradient -->
+    <radialGradient id="g-blush" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FF8FA3" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FF8FA3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Abstract background shapes (transparent overall) -->
+  <g opacity="0.85">
+    <ellipse cx="280" cy="300" rx="190" ry="120"
+             fill="url(#g-sky)" stroke="url(#g-accent)" stroke-opacity="0.18"/>
+    <ellipse cx="760" cy="280" rx="170" ry="110"
+             fill="url(#g-sky)" stroke="url(#g-accent)" stroke-opacity="0.18"/>
+    <ellipse cx="830" cy="700" rx="150" ry="100"
+             fill="url(#g-sky)" stroke="url(#g-accent)" stroke-opacity="0.14"/>
+    <ellipse cx="250" cy="720" rx="140" ry="95"
+             fill="url(#g-sky)" stroke="url(#g-accent)" stroke-opacity="0.14"/>
+  </g>
+
+  <!-- Central glow (very subtle, still transparent) -->
+  <circle cx="512" cy="460" r="360" fill="url(#g-glow)"/>
+
+  <!-- Avatar group -->
+  <g transform="translate(0, 40)" filter="url(#f-soft)">
+    <!-- Bust base -->
+    <path d="M330,740 C330,620 460,590 512,590 C564,590 694,620 694,740 Z"
+          fill="url(#g-shirt)"/>
+
+    <!-- Neck -->
+    <path d="M470,570 C470,610 554,610 554,570 L554,540 L470,540 Z"
+          fill="#F7D6C6"/>
+
+    <!-- Face (rounded) -->
+    <circle cx="512" cy="460" r="140" fill="#FADFD1"/>
+
+    <!-- Hair (stylized, modern flat) -->
+    <path d="M392,440 C392,360 452,320 512,320 C592,320 640,370 652,428
+             C630,408 606,404 580,410 C548,418 510,436 470,432
+             C438,428 412,430 392,440 Z"
+          fill="#1F2937"/>
+
+    <!-- Hair top flourish -->
+    <path d="M470,318 C520,300 580,312 612,342 C584,330 548,336 522,348
+             C504,356 486,366 470,372 Z"
+          fill="#111827"/>
+
+    <!-- Ears -->
+    <circle cx="372" cy="472" r="18" fill="#FADFD1"/>
+    <circle cx="652" cy="472" r="18" fill="#FADFD1"/>
+
+    <!-- Eyes -->
+    <ellipse cx="468" cy="468" rx="16" ry="12" fill="#111827"/>
+    <ellipse cx="556" cy="468" rx="16" ry="12" fill="#111827"/>
+    <!-- Eye highlights -->
+    <circle cx="462" cy="464" r="3" fill="#fff" opacity="0.75"/>
+    <circle cx="550" cy="464" r="3" fill="#fff" opacity="0.75"/>
+
+    <!-- Eyebrows -->
+    <path d="M442,446 Q468,432 492,446" stroke="#1F2937" stroke-width="8" stroke-linecap="round"/>
+    <path d="M534,446 Q560,432 584,446" stroke="#1F2937" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Smile -->
+    <path d="M468,516 Q512,548 556,516" stroke="#E11D48" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+    <!-- Cheek blush -->
+    <ellipse cx="458" cy="500" rx="22" ry="12" fill="url(#g-blush)"/>
+    <ellipse cx="566" cy="500" rx="22" ry="12" fill="url(#g-blush)"/>
+
+    <!-- Shirt collar -->
+    <path d="M470,540 C490,560 534,560 554,540"
+          stroke="#E0F2FE" stroke-opacity="0.7" stroke-width="6" stroke-linecap="round"/>
+
+    <!-- Shoulder accent blobs -->
+    <circle cx="420" cy="660" r="18" fill="url(#g-accent)" opacity="0.9"/>
+    <circle cx="604" cy="660" r="14" fill="url(#g-accent)" opacity="0.9"/>
+
+    <!-- Subtle bust shadow -->
+    <rect x="380" y="740" width="264" height="26" rx="13" fill="url(#g-shadow)" opacity="0.35"/>
+  </g>
+
+  <!-- Decorative foreground abstract shapes -->
+  <g opacity="0.65">
+    <path d="M860,210 C900,240 900,300 870,330 C840,360 790,350 770,320 C750,290 780,250 810,230 Z"
+          fill="url(#g-accent)" opacity="0.18"/>
+    <path d="M190,270 C220,240 270,240 300,270 C330,300 330,350 300,380 C270,410 220,410 190,380 Z"
+          fill="url(#g-accent)" opacity="0.12"/>
+  </g>
+</svg>
