@@ -19,6 +19,7 @@ const venueSchema = new Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
   address: { type: String, required: true },
+  ownerId: { type: String, required: true },
   sports: [{ type: String, required: true }],
   amenities: [{ type: String, required: true }],
   about: { type: String },
