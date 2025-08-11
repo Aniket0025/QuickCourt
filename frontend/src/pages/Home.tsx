@@ -4,6 +4,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Star, Users, Zap, Shield, Clock } from 'lucide-react';
 import heroImage from '@/assets/hero-sports.jpg';
+import { useEffect, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { CardHeader, CardTitle } from '@/components/ui/card';
 
 export const Home = () => {
   const popularSports = [
@@ -60,6 +64,24 @@ export const Home = () => {
       description: 'Choose from morning, evening, or late-night slots',
     },
   ];
+
+  const [comments, setComments] = useState<{ name: string; message: string; createdAt: string; topic?: string }[]>(() => {
+    try {
+      const raw = localStorage.getItem('quickcourt_home_comments');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [topic, setTopic] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('quickcourt_home_comments', JSON.stringify(comments));
+    } catch {}
+  }, [comments]);
 
   return (
     <div className="min-h-screen">
@@ -254,6 +276,71 @@ export const Home = () => {
               </Button>
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* Comments Section */}
+      <section className="py-16 px-4 bg-card/40">
+        <div className="container mx-auto max-w-4xl">
+          <Card className="border-border/50">
+            <CardHeader className="items-center text-center">
+              <CardTitle className="text-center">What our Customers
+Say about QuickCourt</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form
+                className="grid gap-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const nm = name.trim();
+                  const msg = message.trim();
+                  const tp = topic.trim();
+                  if (!nm || !msg) return;
+                  setComments((prev) => [
+                    { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
+                    ...prev,
+                  ]);
+                  setName('');
+                  setMessage('');
+                  setTopic('');
+                }}
+              >
+                <div className="grid md:grid-cols-2 gap-4">
+                  <Input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+                  <Input
+                    placeholder="Optional topic (e.g., Badminton courts)"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                </div>
+                <Textarea
+                  placeholder="Share your experience or suggestions..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={4}
+                />
+                <div className="flex justify-center">
+                  <Button type="submit" className="btn-bounce">Post Comment</Button>
+                </div>
+              </form>
+
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No comments yet. Be the first to share your thoughts!</p>
+                ) : (
+                  comments.map((c, idx) => (
+                    <div key={idx} className="p-4 rounded-lg border border-border/50 bg-background/60">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-foreground">{c.name}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{c.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
     </div>
