@@ -250,4 +250,39 @@
   .btn-bounce:active {
     transform: scale(0.95);
   }
+
+  /* Horizontal marquee utilities */
+  @keyframes marquee-rtl {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .marquee {
+    overflow: hidden;
+    position: relative;
+  }
+
+  .marquee-track {
+    display: flex;
+    gap: 1.5rem; /* match gap-6 */
+    width: max-content;
+    will-change: transform;
+  }
+
+  .animate-marquee-rtl {
+    animation: marquee-rtl 24s linear infinite;
+  }
+
+  /* Pause on hover for better UX */
+  .marquee:hover .animate-marquee-rtl {
+    animation-play-state: paused;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee-rtl {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
 }

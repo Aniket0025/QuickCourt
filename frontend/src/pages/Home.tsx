@@ -292,36 +292,62 @@ export const Home = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {loadingSports ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="border-border/50 animate-pulse">
-                  <CardContent className="p-6 h-28" />
-                </Card>
-              ))
-            ) : (
-              popularSports.map((sport, index) => {
-                const key = String(sport.name || '').toLowerCase().replace(/\s+/g, '');
-                const icon = sportIcon[key] || '🎯';
-                // Link uses the exact sport label to match DB filter
-                const query = encodeURIComponent(String(sport.name));
-                return (
-                  <Link key={index} to={`/venues?sport=${query}`}>
-                    <Card className="card-gradient hover-lift border-border/50 cursor-pointer">
-                      <CardContent className="p-6 text-center">
-                        <div className="text-4xl mb-3">{icon}</div>
-                        <h3 className="text-lg font-semibold text-foreground mb-2">
-                          {sport.name}
-                        </h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {sport.venues} venues
-                        </Badge>
-                      </CardContent>
+          <div className="marquee">
+            <div className="marquee-track animate-marquee-rtl">
+              {loadingSports
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={`skeleton-a-${i}`} className="border-border/50 animate-pulse w-56">
+                      <CardContent className="p-6 h-28" />
                     </Card>
-                  </Link>
-                );
-              })
-            )}
+                  ))
+                : popularSports.map((sport, index) => {
+                    const key = String(sport.name || '').toLowerCase().replace(/\s+/g, '');
+                    const icon = sportIcon[key] || '🎯';
+                    const query = encodeURIComponent(String(sport.name));
+                    return (
+                      <Link key={`a-${index}`} to={`/venues?sport=${query}`}>
+                        <Card className="card-gradient hover-lift border-border/50 cursor-pointer w-56">
+                          <CardContent className="p-6 text-center">
+                            <div className="text-4xl mb-3">{icon}</div>
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                              {sport.name}
+                            </h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {sport.venues} venues
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+
+              {loadingSports
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={`skeleton-b-${i}`} className="border-border/50 animate-pulse w-56">
+                      <CardContent className="p-6 h-28" />
+                    </Card>
+                  ))
+                : popularSports.map((sport, index) => {
+                    const key = String(sport.name || '').toLowerCase().replace(/\s+/g, '');
+                    const icon = sportIcon[key] || '🎯';
+                    const query = encodeURIComponent(String(sport.name));
+                    return (
+                      <Link key={`b-${index}`} to={`/venues?sport=${query}`}>
+                        <Card className="card-gradient hover-lift border-border/50 cursor-pointer w-56">
+                          <CardContent className="p-6 text-center">
+                            <div className="text-4xl mb-3">{icon}</div>
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                              {sport.name}
+                            </h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {sport.venues} venues
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+            </div>
           </div>
         </div>
       </section>
