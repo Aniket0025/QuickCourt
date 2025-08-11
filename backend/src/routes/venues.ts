@@ -11,12 +11,97 @@ router.get('/', async (req, res) => {
   try {
     const { sport } = req.query as { sport?: string };
     const q: any = {};
-    if (sport) q.sports = { $in: [sport] };
+    if (sport) {
+      const esc = String(sport).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(`^${esc}$`, 'i');
+      Object.assign(q, {
+        $or: [
+          { sports: { $elemMatch: { $regex: rx } } },
+          { 'courts.sport': { $regex: rx } },
+        ],
+      });
+    }
     const venues = await VenueModel.find(q).lean();
     res.json({ data: venues });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Failed to fetch venues' });
+  }
+});
+
+// Featured venues for homepage (recent venues as default heuristic)
+router.get('/featured', async (req, res) => {
+  try {
+    const limit = Math.max(1, Math.min(24, Number(req.query.limit) || 6));
+    const venues = await VenueModel.find({}, {
+      name: 1,
+      sports: 1,
+      address: 1,
+      city: 1,
+      location: 1,
+      photos: 1,
+      rating: 1,
+      pricePerHour: 1,
+      createdAt: 1,
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    return res.json({ data: venues });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to fetch featured venues' });
+  }
+});
+
+// Popular sports with venue counts
+router.get('/popular-sports', async (_req, res) => {
+  try {
+    const agg = await VenueModel.aggregate([
+      {
+        $addFields: {
+          _sportsFromCourts: {
+            $map: {
+              input: { $ifNull: ['$courts', []] },
+              as: 'c',
+              in: '$$c.sport',
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          _allSports: {
+            $setUnion: [
+              { $ifNull: ['$sports', []] },
+              { $ifNull: ['$_sportsFromCourts', []] },
+            ],
+          },
+        },
+      },
+      { $unwind: '$_allSports' },
+      { $set: { _sportKey: { $toLower: '$_allSports' } } },
+      { $group: { _id: '$_sportKey', venues: { $sum: 1 } } },
+      { $sort: { venues: -1 } },
+      { $limit: 20 },
+      { $project: { _id: 0, name: '$_id', venues: 1 } },
+    ]);
+    const defaults = ['badminton', 'tennis', 'football', 'cricket', 'golf', 'hockey'];
+    if (!agg || agg.length === 0) {
+      return res.json({ data: defaults.map((d) => ({ name: d, venues: 0 })) });
+    }
+    // Merge defaults not present in agg
+    const present = new Set((agg as { name: string; venues: number }[]).map((a) => String(a.name).toLowerCase()));
+    const merged = [
+      ...agg,
+      ...defaults
+        .filter((d) => !present.has(d))
+        .map((d) => ({ name: d, venues: 0 })),
+    ].slice(0, 20);
+    return res.json({ data: merged });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to fetch popular sports' });
   }
 });
 

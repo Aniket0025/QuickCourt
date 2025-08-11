@@ -5,23 +5,37 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { listVenues } from '@/lib/api';
 import { toast } from 'sonner';
 
 export const Venues = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
   const [venues, setVenues] = useState<any[]>([]);
 
+  // Initialize selectedSport from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const sportParam = params.get('sport');
+    if (sportParam) {
+      setSelectedSport(sportParam.toLowerCase());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch venues when selectedSport changes (server-side filter)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        const res = await listVenues();
+        const sport = selectedSport !== 'all' ? selectedSport : undefined;
+        const res = await listVenues(sport ? { sport } : undefined);
         const data = (res as any)?.data || [];
         if (!mounted) return;
         setVenues(data);
@@ -32,7 +46,7 @@ export const Venues = () => {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [selectedSport]);
 
   const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis'];
 
@@ -50,13 +64,18 @@ export const Venues = () => {
       const reviews = Array.isArray(v.reviews) ? v.reviews : [];
       const rating = reviews.length
         ? Number((reviews.reduce((a: number, r: any) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
-        : 4.5;
+        : undefined;
       const available = courts.some((c: any) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
+      const allSportsLower = new Set([
+        ...((v.sports || []) as string[]).map((s) => String(s).toLowerCase()),
+        ...courts.map((c: any) => String(c.sport || '').toLowerCase()),
+      ].filter(Boolean));
+      const primarySport = (v.sports && v.sports[0]) || (courts[0]?.sport) || 'Multi-sport';
       return {
         id: v._id,
         name: v.name,
-        sports: v.sports || [],
-        sport: (v.sports && v.sports[0]) || 'Multi-sport',
+        sports: Array.from(allSportsLower),
+        sport: primarySport,
         price,
         rating,
         location: v.address,
@@ -98,14 +117,18 @@ export const Venues = () => {
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search venues or locations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-background/50"
               />
             </div>
             
-            <Select value={selectedSport} onValueChange={setSelectedSport}>
+            <Select value={selectedSport} onValueChange={(val) => {
+               setSelectedSport(val);
+               const params = new URLSearchParams(location.search);
+               if (val === 'all') params.delete('sport'); else params.set('sport', val);
+               navigate({ search: params.toString() }, { replace: true });
+             }}>
               <SelectTrigger className="bg-background/50">
                 <SelectValue placeholder="Sport Type" />
               </SelectTrigger>
@@ -176,10 +199,12 @@ export const Venues = () => {
                   <h3 className="text-xl font-semibold text-foreground line-clamp-1">
                     {venue.name}
                   </h3>
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 text-warning fill-current" />
-                    <span className="text-sm font-medium">{venue.rating}</span>
-                  </div>
+                  {venue.rating !== undefined && (
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-warning fill-current" />
+                      <span className="text-sm font-medium">{venue.rating}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">

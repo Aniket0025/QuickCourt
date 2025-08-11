@@ -1,51 +1,79 @@
 import { Link } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Star, Users, Zap, Shield, Clock } from 'lucide-react';
 import heroImage from '@/assets/hero-sports.jpg';
 import { useEffect, useState } from 'react';
+import { getPopularSports, type PopularSport, getFeaturedVenues, type VenueSummary } from '@/lib/api';
+
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CardHeader, CardTitle } from '@/components/ui/card';
 
 export const Home = () => {
-  const popularSports = [
-    { name: 'Badminton', icon: '🏸', venues: 24 },
-    { name: 'Tennis', icon: '🎾', venues: 18 },
-    { name: 'Basketball', icon: '🏀', venues: 12 },
-    { name: 'Football', icon: '⚽', venues: 8 },
+  const [popularSports, setPopularSports] = useState<PopularSport[]>([]);
+  const [loadingSports, setLoadingSports] = useState(true);
+  const defaultSports: PopularSport[] = [
+    { name: 'badminton', venues: 0 },
+    { name: 'tennis', venues: 0 },
+    { name: 'football', venues: 0 },
+    { name: 'cricket', venues: 0 },
+    { name: 'golf', venues: 0 },
+    { name: 'hockey', venues: 0 },
   ];
+  const sportIcon: Record<string, string> = {
+    badminton: '🏸',
+    tennis: '🎾',
+    basketball: '🏀',
+    football: '⚽',
+    soccer: '⚽',
+    cricket: '🏏',
+    squash: '🎯',
+    tabletennis: '🏓',
+    table_tennis: '🏓',
+    volleyball: '🏐',
+    golf: '⛳',
+    hockey: '🏑',
+  };
 
-  const featuredVenues = [
-    {
-      id: 1,
-      name: 'Ace Sports Complex',
-      sport: 'Badminton',
-      price: 1200,
-      rating: 4.8,
-      location: 'Koramangala',
-      image: '/api/placeholder/300/200',
-    },
-    {
-      id: 2,
-      name: 'Court Champions',
-      sport: 'Tennis',
-      price: 1800,
-      rating: 4.9,
-      location: 'Indiranagar',
-      image: '/api/placeholder/300/200',
-    },
-    {
-      id: 3,
-      name: 'Slam Dunk Arena',
-      sport: 'Basketball',
-      price: 2000,
-      rating: 4.7,
-      location: 'Whitefield',
-      image: '/api/placeholder/300/200',
-    },
-  ];
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingSports(true);
+        const data = await getPopularSports();
+        if (!mounted) return;
+        setPopularSports((Array.isArray(data) && data.length > 0) ? data : defaultSports);
+      } catch (_e) {
+        if (mounted) setPopularSports(defaultSports);
+      } finally {
+        if (mounted) setLoadingSports(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const [featured, setFeatured] = useState<VenueSummary[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoadingFeatured(true);
+        const data = await getFeaturedVenues(6);
+        if (!mounted) return;
+        setFeatured(Array.isArray(data) ? data : []);
+      } catch (_e) {
+        if (mounted) setFeatured([]);
+      } finally {
+        if (mounted) setLoadingFeatured(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const features = [
     {
@@ -168,21 +196,35 @@ export const Home = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {popularSports.map((sport, index) => (
-              <Link key={index} to={`/venues?sport=${sport.name.toLowerCase()}`}>
-                <Card className="card-gradient hover-lift border-border/50 cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-4xl mb-3">{sport.icon}</div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      {sport.name}
-                    </h3>
-                    <Badge variant="secondary" className="text-xs">
-                      {sport.venues} venues
-                    </Badge>
-                  </CardContent>
+            {loadingSports ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="border-border/50 animate-pulse">
+                  <CardContent className="p-6 h-28" />
                 </Card>
-              </Link>
-            ))}
+              ))
+            ) : (
+              popularSports.map((sport, index) => {
+                const key = String(sport.name || '').toLowerCase().replace(/\s+/g, '');
+                const icon = sportIcon[key] || '🎯';
+                // Link uses the exact sport label to match DB filter
+                const query = encodeURIComponent(String(sport.name));
+                return (
+                  <Link key={index} to={`/venues?sport=${query}`}>
+                    <Card className="card-gradient hover-lift border-border/50 cursor-pointer">
+                      <CardContent className="p-6 text-center">
+                        <div className="text-4xl mb-3">{icon}</div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                          {sport.name}
+                        </h3>
+                        <Badge variant="secondary" className="text-xs">
+                          {sport.venues} venues
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -200,43 +242,71 @@ export const Home = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {featuredVenues.map((venue) => (
-              <Link key={venue.id} to={`/venues/${venue.id}`}>
-                <Card className="card-gradient hover-lift border-border/50 overflow-hidden">
-                  <div className="h-48 bg-muted/50 flex items-center justify-center">
-                    <span className="text-muted-foreground">Venue Image</span>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {venue.name}
-                      </h3>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 text-warning fill-current" />
-                        <span className="text-sm text-muted-foreground">
-                          {venue.rating}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="mb-3">
-                      {venue.sport}
-                    </Badge>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{venue.location}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-bold text-secondary">
-                          ₹{venue.price}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/hr</span>
-                      </div>
-                    </div>
-                  </CardContent>
+            {loadingFeatured ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="border-border/50 animate-pulse overflow-hidden">
+                  <div className="h-48 bg-muted/40" />
+                  <CardContent className="p-6 h-36" />
                 </Card>
-              </Link>
-            ))}
+              ))
+            ) : featured.length === 0 ? (
+              <div className="col-span-3 text-center text-muted-foreground">
+                No venues yet. Check back soon!
+              </div>
+            ) : (
+              featured.map((venue) => {
+                const primaryPhoto = venue.photos && venue.photos[0];
+                const sportLabel = Array.isArray(venue.sports) && venue.sports.length > 0 ? venue.sports[0] : 'Multi-sport';
+                const locLabel = venue.city || venue.address || '';
+                const price = venue.pricePerHour;
+                const rating = venue.rating ?? '-';
+                return (
+                  <Link key={venue._id} to={`/venues/${venue._id}`}>
+                    <Card className="card-gradient hover-lift border-border/50 overflow-hidden">
+                      <div className="h-48 bg-muted/50 flex items-center justify-center">
+                        {primaryPhoto ? (
+                          <img src={primaryPhoto} alt={venue.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-muted-foreground">Venue Image</span>
+                        )}
+                      </div>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-lg font-semibold text-foreground">
+                            {venue.name}
+                          </h3>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 text-warning fill-current" />
+                            <span className="text-sm text-muted-foreground">
+                              {rating}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="mb-3">
+                          {sportLabel}
+                        </Badge>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center text-muted-foreground">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span className="text-sm">{locLabel}</span>
+                          </div>
+                          <div className="text-right">
+                            {typeof price === 'number' ? (
+                              <>
+                                <span className="text-lg font-bold text-secondary">₹{price}</span>
+                                <span className="text-sm text-muted-foreground">/hr</span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">View pricing</span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })
+            )}
           </div>
 
           <div className="text-center mt-12">
