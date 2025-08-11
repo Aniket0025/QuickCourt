@@ -191,6 +191,47 @@
     background-clip: text;
   }
 
+  /* Brand pink/purple gradient for headings and logo text */
+  .text-gradient-brand {
+    background-image: linear-gradient(90deg, #a855f7, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gradient for GSAP SplitText letters (pink → purple) */
+  .split-gradient-pink span {
+    background-image: linear-gradient(90deg, #ec4899, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Lighter purple for the word "Sports" */
+  .split-gradient-sports .char,
+  .split-gradient-sports span,
+  .split-gradient-sports div,
+  .split-gradient-sports * {
+    background-image: linear-gradient(90deg, #a78bfa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text;
+    color: transparent !important;
+  }
+
+  /* Magenta/pink for the word "Court" */
+  .split-gradient-court .char,
+  .split-gradient-court span,
+  .split-gradient-court div,
+  .split-gradient-court * {
+    background-image: linear-gradient(90deg, #a855f7, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text;
+    color: transparent !important;
+  }
+
   /* Hover animations */
   .hover-lift {
     transition: var(--transition-smooth);

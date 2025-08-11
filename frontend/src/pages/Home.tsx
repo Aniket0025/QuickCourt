@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Star, Users, Zap, Shield, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, Zap, Shield, Star, CheckCircle2, MessageCircle, TrendingUp, Clock, Heart, User, PenSquare, Trash2 } from 'lucide-react';
+import SplitText from '@/components/SplitText';
 import heroImage from '@/assets/hero-sports.jpg';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
@@ -97,10 +98,50 @@ export const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent dark:from-black/80 dark:via-black/60 dark:to-black/10 mix-blend-multiply" />
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]">
-            Book Your Perfect{' '}
-            <span className="text-gradient-primary">Sports Court</span>
-          </h1>
+          <div role="heading" aria-level={1} className="leading-tight">
+            <SplitText
+              text="Book Your Perfect"
+              className="block text-4xl md:text-6xl font-bold text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+              delay={60}
+              duration={0.5}
+              ease="power3.out"
+              splitType="chars"
+              from={{ opacity: 0, y: 40 }}
+              to={{ opacity: 1, y: 0 }}
+              threshold={0.15}
+              rootMargin="-80px"
+              textAlign="center"
+            />
+            <div className="text-4xl md:text-6xl font-extrabold leading-tight">
+              <SplitText
+                text="Sports"
+                className="inline-block split-gradient-sports drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+                delay={60}
+                duration={0.5}
+                ease="power3.out"
+                splitType="chars"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.15}
+                rootMargin="-80px"
+                textAlign="center"
+              />
+              {' '}
+              <SplitText
+                text="Court"
+                className="inline-block split-gradient-court drop-shadow-[0_3px_10px_rgba(0,0,0,0.6)]"
+                delay={60}
+                duration={0.5}
+                ease="power3.out"
+                splitType="chars"
+                from={{ opacity: 0, y: 40 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.15}
+                rootMargin="-80px"
+                textAlign="center"
+              />
+            </div>
+          </div>
           <p className="text-xl text-gray-200 max-w-2xl mx-auto drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
             Discover and book local sports facilities instantly. Join matches, 
             meet players, and elevate your game.
