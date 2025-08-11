@@ -117,18 +117,6 @@ export const Venues = () => {
 
   useEffect(() => {
     (async () => {
-      if (!nearMe || !userLoc) { setPois([]); return; }
-      try {
-        const data = await fetchSportsPOIsOverpass(userLoc, radiusKm);
-        setPois(data);
-      } catch {
-        setPois([]);
-      }
-    })();
-  }, [nearMe, userLoc, radiusKm]);
-
-  useEffect(() => {
-    (async () => {
       const updates: { idx: number; lat: number; lng: number }[] = [];
       const tasks = venues.map(async (v, idx) => {
         if (typeof v.lat === 'number' && typeof v.lng === 'number') return;
@@ -395,10 +383,11 @@ export const Venues = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
 
         {/* Map and controls below the grid */}
         {!loading && sortedVenues.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 w-full">
             <GoogleMapView
               venues={sortedVenues
                 .filter(v=> typeof v.lat==='number' && typeof v.lng==='number')
@@ -483,8 +472,6 @@ export const Venues = () => {
             </div>
           </div>
         )}
-
-        </div>
 
         {/* No Results */}
         {(!loading && filteredVenues.length === 0) && (
