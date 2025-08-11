@@ -130,3 +130,48 @@ export async function requestPasswordReset(email: string) {
     body: JSON.stringify({ email }),
   });
 }
+
+// ML prediction (heuristic) APIs
+export type PredictRushRequest = {
+  venueId: string;
+  courtId: string;
+  dateTime: string; // ISO
+  durationHours?: number;
+  outdoor?: boolean;
+};
+
+export type PredictRushResponse = {
+  rushScore: number; // 0..1
+  factors: { hour: number; dow: number; venueBias: number; courtBias: number; weather: number };
+  durationHours: number;
+};
+
+export async function predictRush(payload: PredictRushRequest): Promise<PredictRushResponse> {
+  return apiFetch('/api/ml/predict-rush', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export type PredictPriceRequest = PredictRushRequest & {
+  basePrice: number;
+  benchmarkPrice?: number;
+  k?: number; // sensitivity
+  cap?: number; // max uplift, e.g., 0.3 => +30%
+};
+
+export type PredictPriceResponse = {
+  suggestedPrice: number;
+  rushScore: number;
+  capApplied: boolean;
+  factors: PredictRushResponse['factors'];
+  basePrice: number;
+  durationHours: number;
+};
+
+export async function predictPrice(payload: PredictPriceRequest): Promise<PredictPriceResponse> {
+  return apiFetch('/api/ml/predict-price', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
