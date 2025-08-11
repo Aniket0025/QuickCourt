@@ -27,6 +27,7 @@ import About from "./pages/About";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Features from "./pages/Features";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,8 @@ const App = () => (
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              {/* Global assistant widget */}
+              <ChatWidget />
             </div>
           </BrowserRouter>
         </HelmetProvider>
