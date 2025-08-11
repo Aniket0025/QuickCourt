@@ -1,16 +1,40 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getVenue } from '@/lib/api';
+import { getVenue, predictRush, findBestDeals } from '@/lib/api';
 import { toast } from 'sonner';
+import { RushHeatmap } from '@/components/venue/RushHeatmap';
+import { RevenueLab } from '@/components/venue/RevenueLab';
+import { FairSurgeBanner } from '@/components/venue/FairSurgeBanner';
 
 const VenueDetails = () => {
+  type Court = { _id: string; name?: string; sport?: string; operatingHours?: string; pricePerHour?: number; outdoor?: boolean };
+  type Venue = {
+    _id: string;
+    name: string;
+    address?: string;
+    description?: string;
+    about?: string;
+    photos?: string[];
+    reviews?: { user: string; date: string; rating: number; comment: string }[];
+    amenities?: string[];
+    courts?: Court[];
+    sports?: string[];
+  };
+
   const { id } = useParams();
-  const [venue, setVenue] = useState<any | null>(null);
+  const navigate = useNavigate();
+  const [venue, setVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
+  const [computingDeals, setComputingDeals] = useState(false);
+  const firstCourt = useMemo(() => (venue?.courts || [])[0] || null, [venue]);
+  const basePrice = useMemo(() => {
+    const prices = (venue?.courts || []).map((c: Court) => Number(c.pricePerHour || 0)).filter((n: number) => n > 0);
+    return prices.length ? Math.min(...prices) : 500;
+  }, [venue]);
 
   useEffect(() => {
     let mounted = true;
@@ -19,7 +43,7 @@ const VenueDetails = () => {
       try {
         setLoading(true);
         const res = await getVenue(id);
-        const data = (res as any)?.data;
+        const data = (res as { data?: Venue } | null)?.data;
         if (!mounted) return;
         setVenue(data || null);
       } catch (e: any) {
@@ -31,6 +55,60 @@ const VenueDetails = () => {
     })();
     return () => { mounted = false; };
   }, [id]);
+
+  // Surge alert for current hour using first court as proxy
+  useEffect(() => {
+    (async () => {
+      if (!venue || !firstCourt) return;
+      try {
+        const now = new Date();
+        const res = await predictRush({
+          venueId: venue._id,
+          courtId: firstCourt._id,
+          dateTime: now.toISOString(),
+          durationHours: 1,
+          outdoor: Boolean(firstCourt.outdoor)
+        });
+        if (res.rushScore >= 0.8) {
+          toast.warning('Surge alert: Demand is very high this hour');
+        } else if (res.rushScore <= 0.25) {
+          toast('Chill hour: Great time to book and save');
+        }
+      } catch (e) {
+        console.error('predictRush failed', e);
+      }
+    })();
+  }, [venue, firstCourt]);
+
+  async function handleAutoBestPrice() {
+    if (!venue || !firstCourt) return;
+    try {
+      setComputingDeals(true);
+      const items = await findBestDeals({
+        venueId: venue._id,
+        courtId: firstCourt._id,
+        basePrice: Number(firstCourt.pricePerHour || basePrice),
+        startHour: 7,
+        endHour: 22,
+        days: 7,
+        outdoor: Boolean(firstCourt.outdoor),
+      });
+      const top3 = items.slice(0, 3);
+      if (!top3.length) {
+        toast('No suitable deals found');
+        return;
+      }
+      toast.success(`Found ${top3.length} smart deals`);
+      // Navigate to booking with the cheapest slot prefilled via query params
+      const pick = top3[0];
+      const q = new URLSearchParams({ courtId: firstCourt._id, dateTime: pick.dateTime }).toString();
+      navigate(`/venues/${venue._id}/book?${q}`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to compute deals');
+    } finally {
+      setComputingDeals(false);
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-10">
@@ -52,6 +130,8 @@ const VenueDetails = () => {
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-6">
+          <FairSurgeBanner />
+
           <Card>
             <CardHeader>
               <CardTitle>About Venue</CardTitle>
@@ -61,6 +141,22 @@ const VenueDetails = () => {
               {venue.about && <p className="text-sm">{venue.about}</p>}
             </CardContent>
           </Card>
+
+          {firstCourt && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Availability & Pricing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RushHeatmap
+                  venueId={venue._id}
+                  courtId={firstCourt._id}
+                  basePrice={Number(firstCourt.pricePerHour || basePrice)}
+                  outdoor={Boolean(firstCourt.outdoor)}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -136,6 +232,14 @@ const VenueDetails = () => {
                   Book Now
                 </Link>
               </Button>
+              <Button className="w-full" variant="secondary" disabled={!firstCourt || computingDeals} onClick={handleAutoBestPrice}>
+                {computingDeals ? 'Finding Best Deals…' : 'Auto Best Price'}
+              </Button>
+              {firstCourt && (
+                <Button className="w-full" variant="outline" onClick={handleAutoBestPrice}>
+                  Book Smart
+                </Button>
+              )}
               <div className="text-xs text-muted-foreground">Starting from ₹{Math.min(...(venue.courts||[]).map((c:any)=>c.pricePerHour||0))}/hr</div>
             </CardContent>
           </Card>
@@ -158,6 +262,15 @@ const VenueDetails = () => {
               ))}
             </CardContent>
           </Card>
+
+          {firstCourt && (
+            <RevenueLab
+              venueId={venue._id}
+              courtId={firstCourt._id}
+              basePrice={Number(firstCourt.pricePerHour || basePrice)}
+              outdoor={Boolean(firstCourt.outdoor)}
+            />
+          )}
         </div>
       </div>
       </>

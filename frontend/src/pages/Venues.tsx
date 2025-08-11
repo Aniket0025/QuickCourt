@@ -6,15 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { listVenues } from '@/lib/api';
+import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 
 export const Venues = () => {
+  type CourtRaw = { _id: string; pricePerHour?: number; outdoor?: boolean; availableSlots?: any[] };
+  type VenueRaw = {
+    _id: string;
+    name: string;
+    address: string;
+    photos?: string[];
+    amenities?: string[];
+    sports?: string[];
+    courts?: CourtRaw[];
+    reviews?: { rating?: number }[];
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [venues, setVenues] = useState<any[]>([]);
+  const [venues, setVenues] = useState<VenueRaw[]>([]);
+  const [rushMap, setRushMap] = useState<Record<string, 'hot' | 'chill' | undefined>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -34,6 +46,39 @@ export const Venues = () => {
     return () => { mounted = false; };
   }, []);
 
+  // Compute Hot Now / Chill Now using first court as proxy
+  useEffect(() => {
+    (async () => {
+      if (!venues?.length) return;
+      try {
+        const now = new Date();
+        const tasks = venues.map(async (v: VenueRaw) => {
+          const first: CourtRaw | undefined = Array.isArray(v.courts) ? v.courts[0] : undefined;
+          if (!first) return { id: v._id, status: undefined as undefined | 'hot' | 'chill' };
+          try {
+            const res = await predictRush({
+              venueId: v._id,
+              courtId: first._id,
+              dateTime: now.toISOString(),
+              durationHours: 1,
+              outdoor: Boolean(first.outdoor)
+            });
+            const status: 'hot' | 'chill' | undefined = res.rushScore >= 0.7 ? 'hot' : res.rushScore <= 0.35 ? 'chill' : undefined;
+            return { id: v._id, status };
+          } catch {
+            return { id: v._id, status: undefined };
+          }
+        });
+        const results = await Promise.all(tasks);
+        const m: Record<string, 'hot' | 'chill' | undefined> = {};
+        results.forEach(r => { if (r) m[r.id] = r.status; });
+        setRushMap(m);
+      } catch (e) {
+        console.error('rush badges compute failed', e);
+      }
+    })();
+  }, [venues]);
+
   const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis'];
 
   const priceRanges = [
@@ -44,14 +89,14 @@ export const Venues = () => {
   ];
 
   const mapped = useMemo(() => {
-    return venues.map((v) => {
-      const courts = Array.isArray(v.courts) ? v.courts : [];
-      const price = courts.length ? Math.min(...courts.map((c: any) => c.pricePerHour || 0)) : 0;
-      const reviews = Array.isArray(v.reviews) ? v.reviews : [];
+    return venues.map((v: VenueRaw) => {
+      const courts: CourtRaw[] = Array.isArray(v.courts) ? v.courts : [];
+      const price = courts.length ? Math.min(...courts.map((c: CourtRaw) => c.pricePerHour || 0)) : 0;
+      const reviews = Array.isArray(v.reviews) ? v.reviews : [] as { rating?: number }[];
       const rating = reviews.length
-        ? Number((reviews.reduce((a: number, r: any) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
+        ? Number((reviews.reduce((a: number, r: { rating?: number }) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
         : 4.5;
-      const available = courts.some((c: any) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
+      const available = courts.some((c: CourtRaw) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
       return {
         id: v._id,
         name: v.name,
@@ -64,9 +109,10 @@ export const Venues = () => {
         courts: courts.length,
         available,
         photo: (Array.isArray(v.photos) && v.photos[0]) || undefined,
+        rushStatus: rushMap[v._id],
       };
     });
-  }, [venues]);
+  }, [venues, rushMap]);
 
   const filteredVenues = mapped.filter(venue => {
     const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -170,98 +216,167 @@ export const Venues = () => {
                       <div className="absolute top-2 right-2">
                         <Badge variant="destructive">Fully Booked</Badge>
                       </div>
+          {loading && (
+                      <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
                     )}
-                  </div>
-
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="text-xl font-semibold text-foreground line-clamp-1">
-                        {venue.name}
-                      </h3>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-4 w-4 text-warning fill-current" />
-                        <span className="text-sm font-medium">{venue.rating}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary">{venue.sport}</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {venue.courts} court{venue.courts !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        <span className="text-sm line-clamp-1">{venue.location}</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {venue.amenities.slice(0, 3).map((amenity, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {amenity}
-                          </Badge>
-                        ))}
-                        {venue.amenities.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{venue.amenities.length - 3} more
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex justify-between items-center pt-4 border-t border-border/50">
-                        <div>
-                          <span className="text-2xl font-bold text-secondary">
-                            ₹{venue.price}
-                          </span>
-                          <span className="text-sm text-muted-foreground">/hour</span>
+                    {!loading && filteredVenues.map((venue) => (
+                      <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
+                        <div className="h-48 bg-muted/50 flex items-center justify-center relative">
+                          {venue.photo ? (
+                            <img
+                              src={venue.photo}
+                              alt={venue.name}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full bg-muted" />
+                          )}
+                          <div className="absolute inset-0 bg-black/20" />
+                          {/* Hot/Chill badges */}
+                          {venue.rushStatus === 'hot' && (
+                            <div className="absolute top-2 left-2">
+                              <Badge variant="destructive">Hot Now</Badge>
+                            </div>
+                          )}
+                          {venue.rushStatus === 'chill' && (
+                            <div className="absolute top-2 left-2">
+                              <Badge variant="secondary">Chill Now</Badge>
+                            </div>
+                          )}
+                          {!venue.available && (
+                            <div className="absolute top-2 right-2">
+                              <Badge variant="destructive">Fully Booked</Badge>
+                            </div>
+                          )}
                         </div>
-                        <Link to={`/venues/${venue.id}`}>
-                          <Button
-                            className="btn-bounce bg-primary hover:bg-primary/90"
-                            disabled={!venue.available}
-                          >
-                            <Calendar className="h-4 w-4 mr-2" />
-                            {venue.available ? 'Book Now' : 'Unavailable'}
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
 
-        {/* No Results */ }
-        {
-              filteredVenues.length === 0 && (
-                <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
-                    <Search className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    No venues found
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Try adjusting your search criteria or browse all venues
-                  </p>
-                  <Button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedSport('all');
-                      setPriceRange('all');
-                    }}
-                    variant="outline"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              )
-            }
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-3">
+                            <h3 className="text-xl font-semibold text-foreground line-clamp-1">
+                              {venue.name}
+                            </h3>
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-4 w-4 text-warning fill-current" />
+                              <span className="text-sm font-medium">{venue.rating}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="secondary">{venue.sport}</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {venue.courts} court{venue.courts !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center text-muted-foreground">
+                              <MapPin className="h-4 w-4 mr-2" />
+                              <span className="text-sm line-clamp-1">{venue.location}</span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1">
+                              {venue.amenities.slice(0, 3).map((amenity, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {amenity}
+                                </Badge>
+                              ))}
+                              {venue.amenities.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{venue.amenities.length - 3} more
+                                </Badge>
+                              )}
+                            </div>
+
+                            <CardContent className="p-6">
+                              <div className="flex justify-between items-start mb-3">
+                                <h3 className="text-xl font-semibold text-foreground line-clamp-1">
+                                  {venue.name}
+                                </h3>
+                                <div className="flex items-center space-x-1">
+                                  <Star className="h-4 w-4 text-warning fill-current" />
+                                  <span className="text-sm font-medium">{venue.rating}</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <Badge variant="secondary">{venue.sport}</Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {venue.courts} court{venue.courts !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center text-muted-foreground">
+                                  <MapPin className="h-4 w-4 mr-2" />
+                                  <span className="text-sm line-clamp-1">{venue.location}</span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-1">
+                                  {venue.amenities.slice(0, 3).map((amenity, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs">
+                                      {amenity}
+                                    </Badge>
+                                  ))}
+                                  {venue.amenities.length > 3 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{venue.amenities.length - 3} more
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-4 border-t border-border/50">
+                                  <div>
+                                    <span className="text-2xl font-bold text-secondary">
+                                      ₹{venue.price}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground">/hour</span>
+                                  </div>
+                                  <Link to={`/venues/${venue.id}`}>
+                                    <Button
+                                      className="btn-bounce bg-primary hover:bg-primary/90"
+                                      disabled={!venue.available}
+                                    >
+                                      <Calendar className="h-4 w-4 mr-2" />
+                                      {venue.available ? 'Book Now' : 'Unavailable'}
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+              ))}
+                        </div>
+
+                        {/* No Results */}
+                        {
+                          filteredVenues.length === 0 && (
+                            <div className="text-center py-16">
+                              <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
+                                <Search className="h-12 w-12 text-muted-foreground" />
+                              </div>
+                              <h3 className="text-xl font-semibold text-foreground mb-2">
+                                No venues found
+                              </h3>
+                              <p className="text-muted-foreground mb-6">
+                                Try adjusting your search criteria or browse all venues
+                              </p>
+                              <Button
+                                onClick={() => {
+                                  setSearchQuery('');
+                                  setSelectedSport('all');
+                                  setPriceRange('all');
+                                }}
+                                variant="outline"
+                              >
+                                Clear Filters
+                              </Button>
+                            </div>
+                          )
+                        }
+                      </div>
       </div>
-      </div>
-      );
+                  );
 };
 
-      export default Venues;
+                  export default Venues;
