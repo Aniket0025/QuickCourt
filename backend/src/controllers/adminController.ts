@@ -34,11 +34,9 @@ export async function getAdminMetrics(_req: Request, res: Response) {
 
 export async function getAdmin7dStats(_req: Request, res: Response) {
   try {
-    // last 7 calendar days including today
+    // last 7 calendar days including today, using UTC boundaries
     const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - 6);
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6, 0, 0, 0, 0));
 
     const dateFormat = { format: '%Y-%m-%d', date: '$createdAt' } as any;
 
@@ -68,7 +66,7 @@ export async function getAdmin7dStats(_req: Request, res: Response) {
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      d.setUTCDate(start.getUTCDate() + i);
       const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
       dayLabels.push(key);
       bookingsPerDay.push(bMap.get(key) || 0);

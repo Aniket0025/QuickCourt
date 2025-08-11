@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { isValidObjectId } from 'mongoose';
+import { isValidObjectId, Types } from 'mongoose';
 import { VenueModel } from '../models/Venue';
 import { BookingModel } from '../models/Booking';
 
@@ -13,13 +13,17 @@ export async function getOwnerVenueMetrics(req: Request, res: Response) {
 
     const activeCourts = Array.isArray(venue.courts) ? venue.courts.length : 0;
 
-    const totalBookings = await BookingModel.countDocuments({ venueId });
+    const venueObjectId = new Types.ObjectId(venueId);
+    const totalBookings = await BookingModel.countDocuments({ venueId: venueObjectId });
 
-    // Earnings for current month from confirmed/completed bookings
+    // Earnings for current month by occurrence date (dateTime), include confirmed/completed
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
     const earningsAgg = await BookingModel.aggregate([
-      { $match: { venueId: (venueId as any), createdAt: { $gte: monthStart }, status: { $in: ['confirmed', 'completed'] } } },
+      { $match: { venueId: venueObjectId, status: { $in: ['confirmed', 'completed'] } } },
+      { $addFields: { _dt: { $convert: { input: '$dateTime', to: 'date', onError: new Date(0), onNull: new Date(0) } } } },
+      { $match: { _dt: { $gte: monthStart, $lt: nextMonthStart } } },
       { $group: { _id: null, total: { $sum: '$price' } } },
     ]);
     const monthEarnings = earningsAgg?.[0]?.total || 0;
@@ -35,17 +39,21 @@ export async function getOwnerVenue7dStats(req: Request, res: Response) {
   try {
     const venueId = (req.query.venueId as string) || '';
     if (!isValidObjectId(venueId)) return res.status(400).json({ error: 'Invalid venueId' });
+    const venueObjectId = new Types.ObjectId(venueId);
 
+    // Use UTC boundaries to avoid timezone mismatches between app server and Mongo aggregation.
+    // Compute the start as UTC midnight 6 days ago (inclusive of today -> 7 days total)
     const now = new Date();
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - 6);
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6, 0, 0, 0, 0));
 
-    const dateFormat = { format: '%Y-%m-%d', date: '$createdAt' } as any;
+    // Group by UTC day key YYYY-MM-DD using booking occurrence date (dateTime)
+    const dateFormat = { format: '%Y-%m-%d', date: '$dateTime' } as any;
 
     const bookingsAgg = await BookingModel.aggregate([
-      { $match: { venueId: (venueId as any), createdAt: { $gte: start } } },
-      { $group: { _id: { $dateToString: dateFormat }, count: { $sum: 1 } } },
+      { $match: { venueId: venueObjectId } },
+      { $addFields: { _dt: { $convert: { input: '$dateTime', to: 'date', onError: new Date(0), onNull: new Date(0) } } } },
+      { $match: { _dt: { $gte: start } } },
+      { $group: { _id: { $dateToString: { ...dateFormat, date: '$_dt' } }, count: { $sum: 1 } } },
     ]);
 
     const dayLabels: string[] = [];
@@ -56,7 +64,7 @@ export async function getOwnerVenue7dStats(req: Request, res: Response) {
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      d.setUTCDate(start.getUTCDate() + i);
       const key = d.toISOString().slice(0, 10);
       dayLabels.push(key);
       bookingsPerDay.push(bMap.get(key) || 0);
