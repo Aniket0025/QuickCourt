@@ -10,6 +10,6 @@ const userSchema = new Schema({
   otpCode: { type: String },
   otpExpiresAt: { type: Date }
 }, { timestamps: true });
-
+//1234
 export type User = InferSchemaType<typeof userSchema> & { _id: string };
 export const UserModel = model('User', userSchema);
