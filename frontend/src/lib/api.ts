@@ -88,6 +88,28 @@ export async function getAdmin7dStats(): Promise<AdminStats7d> {
   return apiFetch('/api/admin/stats-7d', { method: 'GET' });
 }
 
+// Owner metrics/stats
+export type OwnerMetrics = {
+  activeCourts: number;
+  totalBookings: number;
+  monthEarnings: number;
+};
+
+export async function getOwnerMetrics(venueId: string): Promise<OwnerMetrics> {
+  const q = new URLSearchParams({ venueId }).toString();
+  return apiFetch(`/api/owner/metrics?${q}`, { method: 'GET' });
+}
+
+export type OwnerStats7d = {
+  dayLabels: string[];
+  bookingsPerDay: number[];
+};
+
+export async function getOwner7dStats(venueId: string): Promise<OwnerStats7d> {
+  const q = new URLSearchParams({ venueId }).toString();
+  return apiFetch(`/api/owner/stats-7d?${q}`, { method: 'GET' });
+}
+
 export async function rateBooking(id: string, rating: number) {
   return apiFetch(`/api/bookings/${id}/rate`, {
     method: 'PATCH',
