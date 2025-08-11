@@ -22,7 +22,7 @@ const About = () => {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <Card className="card-gradient border-border/50">
+        <Card className="card-gradient hover-lift hover-grow border-border/50">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold mb-2">Our Mission</h2>
             <p className="text-muted-foreground">
@@ -31,7 +31,7 @@ const About = () => {
           </CardContent>
         </Card>
 
-        <Card className="card-gradient border-border/50">
+        <Card className="card-gradient hover-lift hover-grow border-border/50">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
@@ -43,7 +43,7 @@ const About = () => {
           </CardContent>
         </Card>
 
-        <Card className="card-gradient border-border/50 md:col-span-2">
+        <Card className="card-gradient hover-lift hover-grow border-border/50 md:col-span-2">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -56,7 +56,7 @@ const About = () => {
         </Card>
 
         {/* WhatsApp Community QR Section */}
-        <Card className="card-gradient border-border/50 md:col-span-2">
+        <Card className="card-gradient hover-lift hover-grow border-border/50 md:col-span-2">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-1">

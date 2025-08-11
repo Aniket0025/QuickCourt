@@ -250,7 +250,7 @@ export const Profile = () => {
           </TabsList>
 
           <TabsContent value="profile">
-            <Card className="card-gradient border-border/50">
+            <Card className="card-gradient hover-lift hover-grow border-border/50">
               <CardHeader>
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16 ring-2 ring-primary/20">
@@ -372,7 +372,7 @@ export const Profile = () => {
                   const current = typeof b.rating === 'number' ? b.rating : 0;
                   const chosen = selectedRatings[b._id] ?? current;
                   return (
-                    <Card key={b._id} className="card-gradient border-border/50">
+                    <Card key={b._id} className="card-gradient hover-lift hover-grow border-border/50">
                       <CardContent className="p-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
                           <div className="flex-1 space-y-3">
