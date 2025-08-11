@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { VenueModel } from '../models/Venue';
+import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a venue
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req: AuthedRequest, res) => {
   try {
     const schema = z.object({
       name: z.string().min(1),
@@ -33,7 +34,15 @@ router.post('/', async (req, res) => {
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid payload', issues: parsed.error.flatten() });
-    const created = await VenueModel.create(parsed.data as any);
+    if (!req.user) return res.status(401).json({ error: 'Unauthenticated' });
+    if (req.user.role !== 'facility_owner' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only facility owners or admins can create venues' });
+    }
+
+    const created = await VenueModel.create({
+      ...parsed.data,
+      ownerId: req.user.userId,
+    } as any);
     return res.status(201).json({ data: created });
   } catch (e) {
     console.error(e);
@@ -44,7 +53,6 @@ router.post('/', async (req, res) => {
 // Get single venue
 router.get('/:id', async (req, res) => {
   try {
-    if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid venue id' });
     const venue = await VenueModel.findById(req.params.id).lean();
     if (!venue) return res.status(404).json({ error: 'Venue not found' });
     res.json({ data: venue });

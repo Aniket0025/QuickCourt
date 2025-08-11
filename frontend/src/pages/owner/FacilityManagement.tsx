@@ -11,18 +11,14 @@ import { toast } from 'sonner';
 const FacilityManagement = () => {
   const { user } = useAuth();
   const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
-  const [venueId, setVenueId] = useState<string>(() => localStorage.getItem('quickcourt_owner_venue_id') || '');
-  const [name, setName] = useState('Ace Sports Complex');
-  const [address, setAddress] = useState('Koramangala, Bengaluru');
-  const [description, setDescription] = useState('Premium indoor courts with pro-grade flooring and lighting.');
-  const [sports, setSports] = useState<string[]>(['Badminton','Table Tennis']);
-  const [amenities, setAmenities] = useState<string[]>([
-    'Parking',
-    'Locker Rooms',
-    'Drinking Water',
-    'Coaching',
-    'Showers',
-  ]);
+  const [venueId, setVenueId] = useState<string>('');
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [description, setDescription] = useState('');
+  const [about, setAbout] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [sports, setSports] = useState<string[]>([]);
+  const [amenities, setAmenities] = useState<string[]>([]);
   const [addingAmenity, setAddingAmenity] = useState(false);
   const [newAmenity, setNewAmenity] = useState('');
 
@@ -45,25 +41,7 @@ const FacilityManagement = () => {
 
   const canSave = useMemo(() => !!name && !!address && !!description, [name, address, description]);
 
-  // Preload from backend if a venue id exists
-  useEffect(() => {
-    if (!venueId) return;
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/venues/${venueId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const v = data?.data;
-        if (!v) return;
-        if (v.name) setName(v.name);
-        if (v.address) setAddress(v.address);
-        if (v.description) setDescription(v.description);
-        if (Array.isArray(v.sports)) setSports(v.sports);
-        if (Array.isArray(v.amenities)) setAmenities(v.amenities);
-      } catch {}
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Note: intentionally do not preload any existing venue to keep form blank for new creation
 
   const saveChanges = async () => {
     if (!canSave) {
@@ -76,12 +54,18 @@ const FacilityManagement = () => {
       description: description.trim(),
       sports,
       amenities,
+      about: about.trim(),
+      photos: imageUrl.trim() ? [imageUrl.trim()] : [],
     };
     try {
       const creating = !venueId;
+      const token = localStorage.getItem('quickcourt_token');
       const res = await fetch(`${API_URL}/api/venues${creating ? '' : `/${venueId}`}`, {
         method: creating ? 'POST' : 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -112,16 +96,51 @@ const FacilityManagement = () => {
             <CardTitle>Facility Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input placeholder="Venue ID (auto after save)" value={venueId} readOnly />
             <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
             <Input placeholder="Location" value={address} onChange={(e) => setAddress(e.target.value)} />
             <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea placeholder="About (optional)" value={about} onChange={(e) => setAbout(e.target.value)} />
+            <Input placeholder="Image URL (optional)" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
             <div className="flex gap-2 flex-wrap">
               {sports.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
             </div>
             <div className="flex gap-2">
               <Button onClick={saveChanges} disabled={!canSave}>Save Changes</Button>
-              <Button variant="outline">Upload Photos</Button>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById('venue-photo-input') as HTMLInputElement | null;
+                  input?.click();
+                }}
+              >
+                Upload Photo
+              </Button>
+              <input
+                id="venue-photo-input"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  // Limit ~3MB for safety
+                  if (file.size > 3 * 1024 * 1024) {
+                    toast.error('Please choose an image under 3 MB');
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const dataUrl = reader.result as string;
+                    setImageUrl(dataUrl);
+                    toast.success('Photo added');
+                  };
+                  reader.onerror = () => toast.error('Failed to read image');
+                  reader.readAsDataURL(file);
+                  // reset value so selecting same file again triggers change
+                  e.currentTarget.value = '';
+                }}
+              />
             </div>
           </CardContent>
         </Card>
