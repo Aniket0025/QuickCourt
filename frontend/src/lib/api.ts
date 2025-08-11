@@ -72,17 +72,18 @@ export type AdminMetrics = {
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
   return apiFetch('/api/admin/metrics', { method: 'GET' });
-  export async function rateBooking(id: string, rating: number) {
-    return apiFetch(`/api/bookings/${id}/rate`, {
-      method: 'PATCH',
-      body: JSON.stringify({ rating }),
-    });
-  }
+}
 
-  export async function submitFeedback(payload: { bookingId: string; message: string; rating?: number }) {
-    return apiFetch('/api/feedback', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  }
+export async function rateBooking(id: string, rating: number) {
+  return apiFetch(`/api/bookings/${id}/rate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ rating }),
+  });
+}
+
+export async function submitFeedback(payload: { bookingId: string; message: string; rating?: number }) {
+  return apiFetch('/api/feedback', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
