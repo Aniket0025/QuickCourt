@@ -46,15 +46,37 @@ router.post('/', async (req, res) => {
     if (!courtDoc) return res.status(404).json({ error: 'Court not found' });
 
     const dt = new Date(dateTime);
-    // ensure exact slot exists
-    const idx = (courtDoc.availableSlots || []).findIndex((d: Date) => new Date(d).getTime() === dt.getTime());
-    if (idx === -1) {
-      return res.status(400).json({ error: 'Selected time slot is no longer available' });
+    const now = new Date();
+    if (dt.getTime() < now.getTime()) {
+      return res.status(400).json({ error: 'Selected time must be in the future' });
     }
 
-    // Remove the slot and persist
-    courtDoc.availableSlots.splice(idx, 1);
-    await venueDoc.save();
+    // Try to remove the slot if pre-seeded, otherwise allow flexible booking with clash checks
+    const idx = (courtDoc.availableSlots || []).findIndex((d: Date) => new Date(d).getTime() === dt.getTime());
+    if (idx !== -1) {
+      courtDoc.availableSlots.splice(idx, 1);
+      await venueDoc.save();
+    } else {
+      // No pre-seeded slot. Ensure no overlap with existing bookings for the same court.
+      const newStart = dt.getTime();
+      const newEnd = newStart + durationHours * 60 * 60 * 1000;
+      // Fetch potentially overlapping bookings (same court, not cancelled, starting within ±1 day window)
+      const windowStart = new Date(newStart - 24 * 60 * 60 * 1000);
+      const windowEnd = new Date(newEnd + 24 * 60 * 60 * 1000);
+      const nearby = await BookingModel.find({
+        courtId: String(courtDoc._id ?? courtId),
+        status: { $in: ['confirmed', 'completed'] },
+        dateTime: { $gte: windowStart, $lt: windowEnd },
+      }).lean();
+      const hasClash = (nearby || []).some((b: any) => {
+        const bStart = new Date(b.dateTime).getTime();
+        const bEnd = bStart + Number(b.durationHours || 1) * 60 * 60 * 1000;
+        return bStart < newEnd && newStart < bEnd; // overlap
+      });
+      if (hasClash) {
+        return res.status(400).json({ error: 'Selected time overlaps with an existing booking' });
+      }
+    }
 
     const price = Number(courtDoc.pricePerHour) * durationHours;
 

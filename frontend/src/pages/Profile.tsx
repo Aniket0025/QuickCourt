@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import FriendlyAvatar from '@/assets/friendly-avatar.svg';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { cancelBookingApi, listBookings, rateBooking } from '@/lib/api';
 import { submitFeedback } from '@/lib/api';
 import {
@@ -46,6 +46,8 @@ import { toast } from 'sonner';
 
 export const Profile = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
@@ -166,6 +168,8 @@ export const Profile = () => {
     }
   };
 
+  const defaultTab = (searchParams.get('tab') === 'bookings' ? 'bookings' : 'profile') as 'profile' | 'bookings';
+
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="container mx-auto max-w-4xl">
@@ -178,7 +182,7 @@ export const Profile = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 bg-card/50">
             <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <User className="h-4 w-4 mr-2" />
