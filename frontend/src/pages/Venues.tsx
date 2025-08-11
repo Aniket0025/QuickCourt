@@ -149,7 +149,7 @@ export const Venues = () => {
     })();
   }, [venues]);
 
-  const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis'];
+  const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis', 'cricket', 'golf', 'hockey'];
 
   const priceRanges = [
     { value: 'all', label: 'All Prices' },

@@ -1,9 +1,57 @@
 import { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
+import { ensureModelLoaded, predictBatch } from '../ml/model';
 
 const router = Router();
 
 function clamp01(x: number) {
   return Math.max(0, Math.min(1, x));
+}
+
+function normalizeRushBatch(items: any[], pLo = 0.1, pHi = 0.9) {
+  if (!items || items.length < 3) return items;
+  const arr = items.map((x) => Number(x.rushScore ?? 0));
+  const sorted = [...arr].sort((a, b) => a - b);
+  if (sorted.length < 2) return items;
+  const idxLo = Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * pLo)));
+  const idxHi = Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * pHi)));
+  const lo = Number.isFinite(sorted[idxLo]) ? sorted[idxLo] : sorted[0];
+  const hi = Number.isFinite(sorted[idxHi]) ? sorted[idxHi] : sorted[sorted.length - 1];
+  const span = Math.max(1e-6, hi - lo);
+  return items.map((it) => {
+    const v = Number(it.rushScore ?? 0);
+    return { ...it, rushScore: clamp01((v - lo) / span) };
+  });
+}
+
+function buildFeatures(args: {
+  dt: Date;
+  venueId?: string;
+  courtId?: string;
+  basePrice: number;
+  outdoor?: boolean;
+}) {
+  const { dt, venueId, courtId, basePrice, outdoor } = args;
+  const hour = dt.getUTCHours();
+  const dow = dt.getUTCDay();
+  // cyclical encodings
+  const hSin = Math.sin((2 * Math.PI * hour) / 24);
+  const hCos = Math.cos((2 * Math.PI * hour) / 24);
+  const dSin = Math.sin((2 * Math.PI * dow) / 7);
+  const dCos = Math.cos((2 * Math.PI * dow) / 7);
+  // id hashes (stable in [0,1])
+  const vHash = typeof venueId === 'string' ? hashString(venueId) : 0.5;
+  const cHash = typeof courtId === 'string' ? hashString(courtId) : 0.5;
+  // price scaling (rough normalization)
+  const price = isFinite(basePrice) && basePrice > 0 ? Math.min(1, basePrice / 2000) : 0.25;
+  const out = outdoor ? 1 : 0;
+  return new Float32Array([
+    hSin, hCos, dSin, dCos,
+    vHash, cHash,
+    price,
+    out,
+  ]);
 }
 
 function hashString(s: string) {
@@ -134,7 +182,10 @@ router.post('/predict-price-batch', (req, res) => {
   try {
     const { venueId, courtId, items = [], benchmarkPrice, k = 0.6, cap = 0.3, outdoor = false } = req.body || {};
     if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
-    const results = items.map((it: any) => {
+    const useML = String(process.env.USE_ML_MODEL || '').toLowerCase() === 'true';
+    const modelPath = process.env.MODEL_PATH ? path.resolve(process.cwd(), String(process.env.MODEL_PATH)) : '';
+
+    const baseResults = items.map((it: any) => {
       const { dateTime, basePrice = 500, durationHours = 1 } = it || {};
       const dt = dateTime ? new Date(dateTime) : new Date();
       const hour = dt.getHours();
@@ -144,10 +195,18 @@ router.post('/predict-price-batch', (req, res) => {
       const dayCurve  = [0.5,0.45,0.5,0.55,0.6,0.8,0.9];
       const h = hourCurve[hour] || 0.4;
       const d = dayCurve[dow] || 0.5;
+      // Deterministic per-slot jitter based on ISO hour hash to avoid static bands
+      const isoHour = dt.toISOString().slice(0,13); // YYYY-MM-DDTHH
+      const jitter = ((hashString(isoHour) - 0.5) * 0.1); // ~[-0.05, 0.05]
+      // Mild weekly trend (stable over week)
+      const year = dt.getUTCFullYear();
+      const start = new Date(Date.UTC(year, 0, 1));
+      const week = Math.floor(((dt.getTime() - start.getTime()) / (7 * 24 * 3600 * 1000)) % 52);
+      const weekTrend = Math.sin((week / 52) * Math.PI * 2) * 0.04; // [-0.04, 0.04]
       const venueBias = (hashString(String(venueId)) - 0.5) * 0.2;
       const courtBias = (hashString(String(courtId)) - 0.5) * 0.15;
       const weatherAdj = outdoor ? -0.05 : 0;
-      let rushScore = clamp01(0.15 + h + d + venueBias + courtBias + weatherAdj);
+      let rushScore = clamp01(0.15 + h + d + venueBias + courtBias + weatherAdj + jitter + weekTrend);
       rushScore = clamp01(rushScore / 1.4);
 
       const bench = typeof benchmarkPrice === 'number' && benchmarkPrice > 0 ? benchmarkPrice : basePrice;
@@ -171,7 +230,37 @@ router.post('/predict-price-batch', (req, res) => {
         durationHours
       };
     });
-    return res.json({ items: results });
+
+    const run = async () => {
+      if (!useML) return baseResults;
+      try {
+        if (!modelPath || !fs.existsSync(modelPath)) return baseResults;
+        const loaded = await ensureModelLoaded(modelPath);
+        if (!loaded) return baseResults;
+        const feats = items.map((it: any) => {
+          const { dateTime, basePrice = 500 } = it || {};
+          const dt = dateTime ? new Date(dateTime) : new Date();
+          return buildFeatures({ dt, venueId, courtId, basePrice, outdoor });
+        });
+        const ml = await predictBatch(feats);
+        if (!ml || ml.length !== baseResults.length) return baseResults;
+        const merged = baseResults.map((r, i) => {
+          const rush = clamp01(Number(ml[i]));
+          const rawMult = 1 + k * rush;
+          const cappedMult = Math.min(1 + cap, rawMult);
+          const suggested = Math.round((r.basePrice || 500) * cappedMult);
+          return { ...r, rushScore: rush, suggestedPrice: suggested };
+        });
+        return normalizeRushBatch(merged, 0.1, 0.9);
+      } catch {
+        return baseResults;
+      }
+    };
+
+    return Promise.resolve(run()).then((finalItems) => {
+      const out = normalizeRushBatch(finalItems, 0.1, 0.9);
+      res.json({ items: out });
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Failed to predict price batch' });

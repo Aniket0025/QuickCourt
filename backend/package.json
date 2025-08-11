@@ -23,6 +23,7 @@
     "mongoose": "^8.17.1",
     "nodemailer": "^6.9.14",
     "nodemon": "^3.1.10",
+    "onnxruntime-node": "^1.22.0-rev",
     "zod": "^4.0.17"
   },
   "devDependencies": {
