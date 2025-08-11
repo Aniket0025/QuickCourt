@@ -67,7 +67,15 @@ const About = () => {
                 <p className="text-muted-foreground mb-4">
                   Scan the QR code to join our WhatsApp community for updates, pickup games, and support.
                 </p>
-                {/* Optional: If you share a direct invite link, we can also add a button here. */}
+                {/* Join link button */}
+                <a
+                  href="https://chat.whatsapp.com/KKDEbq8cLx0FaDo7gT9khh?mode=ac_t"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center mt-2 rounded-md bg-green-600/90 text-white px-4 py-2 text-sm font-medium shadow hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                >
+                  Join WhatsApp Group
+                </a>
               </div>
               <div className="w-full md:w-auto text-center">
                 <div className="inline-block rounded-2xl border border-border/60 bg-muted/20 p-3 shadow-lg backdrop-blur-sm">
@@ -85,7 +93,18 @@ const About = () => {
                     }}
                   />
                 </div>
-                <p className="text-xs text-center text-muted-foreground mt-3">Scan to join</p>
+                <p className="text-xs text-center text-muted-foreground mt-3">
+                  Scan to join or
+                  {' '}
+                  <a
+                    href="https://chat.whatsapp.com/KKDEbq8cLx0FaDo7gT9khh?mode=ac_t"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline hover:text-foreground"
+                  >
+                    tap here
+                  </a>
+                </p>
                 {/* Place your exact PNG at frontend/public/whatsapp-community-qr.png */}
               </div>
             </div>
