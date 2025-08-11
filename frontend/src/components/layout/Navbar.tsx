@@ -33,7 +33,6 @@ export const Navbar = () => {
     ...(user
       ? [
           { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
-          ...(user.role === 'user' ? [{ path: '/bookings', label: 'My Bookings', icon: Calendar }] : []),
         ]
       : []),
   ];

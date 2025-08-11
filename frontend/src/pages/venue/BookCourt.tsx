@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createBooking, getVenue } from '@/lib/api';
+import { getVenue } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -59,24 +59,15 @@ const BookCourt = () => {
       toast.error('Please select court and time slot');
       return;
     }
-
-    try {
-      // Simulate payment delay
-      await new Promise(r => setTimeout(r, 800));
-
-      await createBooking({
-        userId: user!.id,
+    // Go to payment simulation with booking details. Actual booking creation happens there.
+    navigate('/payment', {
+      state: {
         venueId: venue._id,
         courtId: selectedCourt._id,
         dateTime: slot,
         durationHours: duration,
-      });
-
-      toast.success('Booking confirmed!');
-      navigate('/bookings');
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create booking');
-    }
+      },
+    });
   };
 
   return (

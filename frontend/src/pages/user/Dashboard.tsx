@@ -123,7 +123,7 @@ const UserDashboard = () => {
               )}
               <div className="mt-4">
                 <Button asChild size="sm" variant="outline">
-                  <Link to="/bookings">View all bookings</Link>
+                  <Link to="/profile?tab=bookings">View all bookings</Link>
                 </Button>
               </div>
             </CardContent>

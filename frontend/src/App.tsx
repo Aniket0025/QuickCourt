@@ -28,6 +28,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Features from "./pages/Features";
 import ChatWidget from "@/components/chat/ChatWidget";
+import PaymentSim from "./pages/PaymentSim";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/venues/:id/book" element={<BookCourt />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/bookings" element={<MyBookings />} />
+                <Route path="/payment" element={<PaymentSim />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
