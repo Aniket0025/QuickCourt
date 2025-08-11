@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -11,6 +11,7 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -94,12 +95,21 @@ export const Navbar = () => {
                 </Button>
               </div>
             ) : (
-              <Link to="/auth">
-                <Button className="btn-bounce bg-primary hover:bg-primary/90 shadow-sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Sign In
-                </Button>
-              </Link>
+              (() => {
+                const onAuth = location.pathname === '/auth';
+                const mode = (searchParams.get('mode') as 'login' | 'signup') || 'login';
+                const targetMode = onAuth && mode === 'login' ? 'signup' : 'login';
+                const label = targetMode === 'signup' ? 'Sign Up' : 'Sign In';
+                const href = `/auth?mode=${targetMode}`;
+                return (
+                  <Link to={href}>
+                    <Button className="btn-bounce bg-primary hover:bg-primary/90 shadow-sm">
+                      <User className="h-4 w-4 mr-2" />
+                      {label}
+                    </Button>
+                  </Link>
+                );
+              })()
             )}
           </div>
 
@@ -151,12 +161,21 @@ export const Navbar = () => {
                     </Button>
                   </>
                 ) : (
-                  <Link to="/auth" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full justify-start btn-bounce bg-primary hover:bg-primary/90">
-                      <User className="h-5 w-5 mr-3" />
-                      Sign In
-                    </Button>
-                  </Link>
+                  (() => {
+                    const onAuth = location.pathname === '/auth';
+                    const mode = (searchParams.get('mode') as 'login' | 'signup') || 'login';
+                    const targetMode = onAuth && mode === 'login' ? 'signup' : 'login';
+                    const label = targetMode === 'signup' ? 'Sign Up' : 'Sign In';
+                    const href = `/auth?mode=${targetMode}`;
+                    return (
+                      <Link to={href} onClick={() => setIsOpen(false)}>
+                        <Button className="w-full justify-start btn-bounce bg-primary hover:bg-primary/90">
+                          <User className="h-5 w-5 mr-3" />
+                          {label}
+                        </Button>
+                      </Link>
+                    );
+                  })()
                 )}
               </div>
             </SheetContent>
