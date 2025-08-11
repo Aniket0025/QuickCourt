@@ -53,6 +53,22 @@ router.post('/signup/request-otp', async (req, res) => {
   }
 });
 
+// POST /api/auth/forgot-password
+const ForgotSchema = z.object({ email: z.string().email() });
+router.post('/forgot-password', async (req, res) => {
+  const parsed = ForgotSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid email' });
+  const { email } = parsed.data;
+  try {
+    // No-op implementation: don't reveal whether the email exists
+    // In a real app, generate a token and email the user here.
+    return res.json({ message: 'If an account exists, a reset link has been sent' });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
 // POST /api/auth/signup/verify-otp
 router.post('/signup/verify-otp', async (req, res) => {
   const parsed = OtpVerifySchema.safeParse(req.body);

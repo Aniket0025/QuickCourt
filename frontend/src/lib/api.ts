@@ -90,3 +90,10 @@ export async function submitFeedback(payload: { bookingId: string; message: stri
     body: JSON.stringify(payload),
   });
 }
+
+export async function requestPasswordReset(email: string) {
+  return apiFetch('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
