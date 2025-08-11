@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { Calendar, Filter, MapPin, Search, Star } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { listVenues, listMyVenues, predictRush } from '@/lib/api';
+import GoogleMapView, { type MapPOI as GMapPOI, type MapVenue as GMapVenue } from '@/components/map/GoogleMapView';
+import { listMyVenues, listVenues, predictRush } from '@/lib/api';
+import { geocodeNominatim, getUserLocation, haversineKm, LatLng } from '@/lib/geo';
 import { toast } from 'sonner';
-import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
-import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass } from '@/lib/geo';
 
 export const Venues = () => {
   const location = useLocation();
@@ -357,19 +357,38 @@ export const Venues = () => {
           {loading && (
             <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
           )}
+          {loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-border/50 overflow-hidden">
+                  <div className="h-56 bg-muted/30 animate-pulse" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-5 w-2/3 bg-muted/30 rounded animate-pulse" />
+                    <div className="h-4 w-3/4 bg-muted/30 rounded animate-pulse" />
+                    <div className="flex gap-2">
+                      <div className="h-6 w-16 bg-muted/30 rounded-full animate-pulse" />
+                      <div className="h-6 w-20 bg-muted/30 rounded-full animate-pulse" />
+                    </div>
+                    <div className="h-10 w-full bg-muted/30 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {!loading && sortedVenues.map((venue) => (
-            <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
-              <div className="relative h-44 overflow-hidden">
+            <Card key={venue.id} className="hover-card group card-gradient border-border/50 overflow-hidden">
+              <div className="relative h-56 md:h-60 overflow-hidden">
                 {venue.photo ? (
                   <img
                     src={venue.photo}
                     alt={venue.name}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
                   <div className="absolute inset-0 w-full h-full bg-muted" />
                 )}
-                <div className="absolute inset-0 bg-black/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/25 to-transparent" />
                 {/* Hot/Chill badges */}
                 {venue.rushStatus === 'hot' && (
                   <div className="absolute top-2 left-2">
@@ -390,7 +409,7 @@ export const Venues = () => {
               
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-xl font-semibold text-foreground line-clamp-1">
+                  <h3 className="text-xl font-semibold text-foreground line-clamp-1 tracking-tight">
                     {venue.name}
                   </h3>
                   {venue.rating !== undefined && (
@@ -405,12 +424,12 @@ export const Venues = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex flex-wrap gap-1">
                       {venue.sports.slice(0, 3).map((s: string, idx: number) => (
-                        <Badge key={idx} variant="secondary">
+                        <Badge key={idx} variant="secondary" className="backdrop-blur bg-secondary/80">
                           {s.charAt(0).toUpperCase() + s.slice(1)}
                         </Badge>
                       ))}
                       {venue.sports.length > 3 && (
-                        <Badge variant="secondary">+{venue.sports.length - 3} more</Badge>
+                        <Badge variant="secondary" className="backdrop-blur bg-secondary/80">+{venue.sports.length - 3} more</Badge>
                       )}
                     </div>
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
@@ -440,16 +459,17 @@ export const Venues = () => {
                   </div>
 
                   <div className="flex justify-between items-center pt-4 border-t border-border/50">
-                    <div>
-                      <span className="text-2xl font-bold text-secondary">
-                        ₹{venue.price}
-                      </span>
-                      <span className="text-sm text-muted-foreground">/hour</span>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Starting from</span>
+                      <div className="backdrop-blur bg-background/70 border border-border/50 rounded-full px-3 py-1.5 shadow-sm flex items-center gap-1 text-sm">
+                        <span className="font-semibold text-secondary">₹{venue.price}</span>
+                        <span className="text-muted-foreground">/hr</span>
+                      </div>
                     </div>
-                    {user?.role === 'facility_owner' ? null : (
+                    {user?.role !== 'facility_owner' && (
                       <Link to={`/venues/${venue.id}`}>
                         <Button
-                          className="btn-bounce bg-primary hover:bg-primary/90"
+                          className="btn-bounce bg-primary hover:bg-primary/90 shadow-md"
                           disabled={!venue.available}
                           aria-disabled={!venue.available}
                         >
