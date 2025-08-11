@@ -126,12 +126,25 @@ export const Home = () => {
   const [message, setMessage] = useState('');
   const [topic, setTopic] = useState('');
   const commentsRowRef = useRef<HTMLDivElement | null>(null);
+  const [isCommentsHover, setIsCommentsHover] = useState(false);
+  const [postSuccess, setPostSuccess] = useState(false);
   const scrollComments = (dir: 'left' | 'right') => {
     const el = commentsRowRef.current;
     if (!el) return;
     const delta = dir === 'left' ? -400 : 400;
     el.scrollBy({ left: delta, behavior: 'smooth' });
   };
+
+  // Auto-slide testimonials; pause on hover
+  useEffect(() => {
+    if (isCommentsHover) return;
+    const id = window.setInterval(() => {
+      const el = commentsRowRef.current;
+      if (!el) return;
+      el.scrollBy({ left: 380, behavior: 'smooth' });
+    }, 3500);
+    return () => window.clearInterval(id);
+  }, [isCommentsHover]);
 
   // Persist comments locally for offline quick load
   useEffect(() => {
@@ -250,7 +263,7 @@ export const Home = () => {
 
       {/* Features Section */}
       <section className="py-16 px-4">
-        <div className="container mx-auto max-w-6xl">
+        <div className="container mx-auto max-w-none px-0 sm:px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Why Choose QuickCourt?
@@ -364,72 +377,124 @@ export const Home = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {loadingFeatured ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="border-border/50 animate-pulse overflow-hidden">
-                  <div className="h-48 bg-muted/40" />
-                  <CardContent className="p-6 h-36" />
-                </Card>
-              ))
-            ) : featured.length === 0 ? (
-              <div className="col-span-3 text-center text-muted-foreground">
-                No venues yet. Check back soon!
-              </div>
-            ) : (
-              featured.map((venue) => {
-                const primaryPhoto = venue.photos && venue.photos[0];
-                const sportLabel = Array.isArray(venue.sports) && venue.sports.length > 0 ? venue.sports[0] : 'Multi-sport';
-                const locLabel = venue.city || venue.address || '';
-                const price = venue.pricePerHour;
-                const rating = venue.rating ?? '-';
-                return (
-                  <Link key={venue._id} to={`/venues/${venue._id}`}>
-                    <Card className="card-gradient hover-lift border-border/50 overflow-hidden">
-                      <div className="h-48 bg-muted/50 flex items-center justify-center">
-                        {primaryPhoto ? (
-                          <img src={primaryPhoto} alt={venue.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-muted-foreground">Venue Image</span>
-                        )}
-                      </div>
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="text-lg font-semibold text-foreground">
-                            {venue.name}
-                          </h3>
-                          <div className="flex items-center space-x-1">
-                            <Star className="h-4 w-4 text-warning fill-current" />
-                            <span className="text-sm text-muted-foreground">
-                              {rating}
-                            </span>
-                          </div>
+          <div className="marquee">
+            <div className="marquee-track animate-marquee-rtl">
+              {loadingFeatured ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={`fv-skel-a-${i}`} className="border-border/50 animate-pulse overflow-hidden w-56">
+                    <div className="h-40 bg-muted/40" />
+                    <CardContent className="p-5 h-32" />
+                  </Card>
+                ))
+              ) : featured.length === 0 ? (
+                <div className="text-center text-muted-foreground w-64">No venues yet</div>
+              ) : (
+                featured.map((venue) => {
+                  const primaryPhoto = venue.photos && venue.photos[0];
+                  const sportLabel = Array.isArray(venue.sports) && venue.sports.length > 0 ? venue.sports[0] : 'Multi-sport';
+                  const locLabel = venue.city || venue.address || '';
+                  const price = venue.pricePerHour;
+                  const rating = venue.rating ?? '-';
+                  return (
+                    <Link key={`fv-a-${venue._id}`} to={`/venues/${venue._id}`}>
+                      <Card className="card-gradient hover-lift border-border/50 overflow-hidden w-56">
+                        <div className="h-40 bg-muted/50 flex items-center justify-center">
+                          {primaryPhoto ? (
+                            <img src={primaryPhoto} alt={venue.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-muted-foreground">Venue Image</span>
+                          )}
                         </div>
-                        <Badge variant="outline" className="mb-3">
-                          {sportLabel}
-                        </Badge>
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center text-muted-foreground">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            <span className="text-sm">{locLabel}</span>
+                        <CardContent className="p-5">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-base font-semibold text-foreground line-clamp-1">
+                              {venue.name}
+                            </h3>
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-4 w-4 text-warning fill-current" />
+                              <span className="text-xs text-muted-foreground">{rating}</span>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            {typeof price === 'number' ? (
-                              <>
-                                <span className="text-lg font-bold text-secondary">₹{price}</span>
-                                <span className="text-sm text-muted-foreground">/hr</span>
-                              </>
+                          <Badge variant="outline" className="mb-2">{sportLabel}</Badge>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center text-muted-foreground">
+                              <MapPin className="h-4 w-4 mr-1" />
+                              <span className="text-xs line-clamp-1">{locLabel}</span>
+                            </div>
+                            <div className="text-right">
+                              {typeof price === 'number' ? (
+                                <>
+                                  <span className="text-base font-bold text-secondary">₹{price}</span>
+                                  <span className="text-xs text-muted-foreground">/hr</span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">View pricing</span>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })
+              )}
+
+              {loadingFeatured
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <Card key={`fv-skel-b-${i}`} className="border-border/50 animate-pulse overflow-hidden w-56">
+                      <div className="h-40 bg-muted/40" />
+                      <CardContent className="p-5 h-32" />
+                    </Card>
+                  ))
+                : featured.map((venue) => {
+                    const primaryPhoto = venue.photos && venue.photos[0];
+                    const sportLabel = Array.isArray(venue.sports) && venue.sports.length > 0 ? venue.sports[0] : 'Multi-sport';
+                    const locLabel = venue.city || venue.address || '';
+                    const price = venue.pricePerHour;
+                    const rating = venue.rating ?? '-';
+                    return (
+                      <Link key={`fv-b-${venue._id}`} to={`/venues/${venue._id}`}>
+                        <Card className="card-gradient hover-lift border-border/50 overflow-hidden w-56">
+                          <div className="h-40 bg-muted/50 flex items-center justify-center">
+                            {primaryPhoto ? (
+                              <img src={primaryPhoto} alt={venue.name} className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-sm text-muted-foreground">View pricing</span>
+                              <span className="text-muted-foreground">Venue Image</span>
                             )}
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })
-            )}
+                          <CardContent className="p-5">
+                            <div className="flex justify-between items-start mb-2">
+                              <h3 className="text-base font-semibold text-foreground line-clamp-1">
+                                {venue.name}
+                              </h3>
+                              <div className="flex items-center space-x-1">
+                                <Star className="h-4 w-4 text-warning fill-current" />
+                                <span className="text-xs text-muted-foreground">{rating}</span>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="mb-2">{sportLabel}</Badge>
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center text-muted-foreground">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                <span className="text-xs line-clamp-1">{locLabel}</span>
+                              </div>
+                              <div className="text-right">
+                                {typeof price === 'number' ? (
+                                  <>
+                                    <span className="text-base font-bold text-secondary">₹{price}</span>
+                                    <span className="text-xs text-muted-foreground">/hr</span>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">View pricing</span>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+            </div>
           </div>
 
           <div className="text-center mt-12">
@@ -472,16 +537,76 @@ export const Home = () => {
       </section>
 
       {/* Comments Section */}
-      <section className="py-3 px-4 bg-card/40">
+      <section className="py-3 px-4 bg-card/40 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 opacity-60 blur-2xl bg-[radial-gradient(ellipse_at_top_left,rgba(236,72,153,.18),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(99,102,241,.18),transparent_55%)]" />
         <div className="container mx-auto max-w-5xl">
           <Card className="border-border/50">
             <CardHeader className="items-center text-center py-2">
               <CardTitle className="text-center">What our Customers
                 Say about QuickCourt</CardTitle>
+              <p className="text-sm text-muted-foreground">Real experiences from players who booked with QuickCourt</p>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="relative mt-1" onMouseEnter={() => setIsCommentsHover(true)} onMouseLeave={() => setIsCommentsHover(false)}>
+                {comments.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No comments yet. Be the first to share your thoughts!</p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Scroll left"
+                      onClick={() => scrollComments('left')}
+                      className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-500 text-white shadow-lg hover:shadow-xl active:scale-90 transition-all"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <div
+                      ref={commentsRowRef}
+                      className="overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      <div className="flex gap-4 snap-x snap-mandatory pr-10 pl-10">
+                        {comments.map((c, idx) => {
+                          const gradients = [
+                            'from-fuchsia-500/10 to-violet-500/5',
+                            'from-emerald-500/10 to-cyan-500/5',
+                            'from-amber-500/10 to-pink-500/5',
+                            'from-sky-500/10 to-indigo-500/5',
+                          ];
+                          const grad = gradients[idx % gradients.length];
+                          return (
+                          <div
+                            key={idx}
+                            className={`snap-start min-w-[300px] md:min-w-[380px] p-5 rounded-2xl border border-border/40 bg-gradient-to-br ${grad} backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:rotate-[0.25deg] animate-fade-slide-in`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-lg text-foreground">{c.name}</span>
+                              <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
+                            </div>
+                            {c.topic ? (
+                              <div className="mb-1 text-xs text-muted-foreground">Topic: {c.topic}</div>
+                            ) : null}
+                            <p className="text-sm italic text-foreground/90 whitespace-pre-wrap leading-relaxed">{c.message}</p>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Scroll right"
+                      onClick={() => scrollComments('right')}
+                      className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg hover:shadow-xl active:scale-90 transition-all"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="border-t border-border/40 pt-4" />
+
               <form
-                className="grid gap-2"
+                className="grid gap-2 mt-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   const nm = name.trim();
@@ -507,12 +632,16 @@ export const Home = () => {
                           },
                           ...prev,
                         ]);
+                        setPostSuccess(true);
+                        setTimeout(() => setPostSuccess(false), 1200);
                       } else {
                         // fallback: optimistic add
                         setComments((prev) => [
                           { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
                           ...prev,
                         ]);
+                        setPostSuccess(true);
+                        setTimeout(() => setPostSuccess(false), 1200);
                       }
                     } catch {
                       // network error fallback
@@ -520,6 +649,8 @@ export const Home = () => {
                         { name: nm, message: msg, createdAt: new Date().toISOString(), ...(tp ? { topic: tp } : {}) },
                         ...prev,
                       ]);
+                      setPostSuccess(true);
+                      setTimeout(() => setPostSuccess(false), 1200);
                     } finally {
                       setName('');
                       setMessage('');
@@ -538,57 +669,17 @@ export const Home = () => {
                   rows={2}
                   className="min-h-[56px]"
                 />
-                <div className="flex justify-center">
-                  <Button type="submit" className="btn-bounce h-9 px-4">Post Comment</Button>
+                <div className="flex justify-center relative">
+                  <Button type="submit" className="btn-glow h-11 px-6 text-base rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white hover:from-fuchsia-400 hover:to-violet-400 transition-all shadow-lg">
+                    Post Comment
+                  </Button>
+                  {postSuccess && (
+                    <div className="absolute -right-10 top-1/2 -translate-y-1/2 text-emerald-400 animate-fade-slide-in">
+                      <CheckCircle2 className="h-6 w-6" />
+                    </div>
+                  )}
                 </div>
               </form>
-
-              <div className="relative mt-1">
-                {comments.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">No comments yet. Be the first to share your thoughts!</p>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      aria-label="Scroll left"
-                      onClick={() => scrollComments('left')}
-                      className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-background/80 border border-border/50 shadow hover:bg-background"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <div
-                      ref={commentsRowRef}
-                      className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                    >
-                      <div className="flex gap-3 snap-x snap-mandatory">
-                        {comments.map((c, idx) => (
-                          <div
-                            key={idx}
-                            className="snap-start min-w-[280px] md:min-w-[360px] p-3 rounded-lg border border-border/50 bg-background/60"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-medium text-foreground">{c.name}</span>
-                              <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</span>
-                            </div>
-                            {c.topic ? (
-                              <div className="mb-1 text-xs text-muted-foreground">Topic: {c.topic}</div>
-                            ) : null}
-                            <p className="text-sm text-foreground whitespace-pre-wrap">{c.message}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Scroll right"
-                      onClick={() => scrollComments('right')}
-                      className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-background/80 border border-border/50 shadow hover:bg-background"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </>
-                )}
-              </div>
             </CardContent>
           </Card>
         </div>

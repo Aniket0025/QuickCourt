@@ -264,18 +264,37 @@
 
   .marquee-track {
     display: flex;
-    gap: 1.5rem; /* match gap-6 */
+    gap: 1rem; /* tighter than gap-6 to fit more cards */
     width: max-content;
     will-change: transform;
   }
 
   .animate-marquee-rtl {
-    animation: marquee-rtl 24s linear infinite;
+    animation: marquee-rtl 20s linear infinite;
   }
 
   /* Pause on hover for better UX */
   .marquee:hover .animate-marquee-rtl {
     animation-play-state: paused;
+  }
+
+  /* Fade + slide animation for testimonial cards */
+  @keyframes fade-slide-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-slide-in {
+    animation: fade-slide-in 400ms ease-out both;
+  }
+
+  /* Glowing button effect */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0px rgba(236,72,153,0.0), 0 0 0px rgba(168,85,247,0.0); }
+    50% { box-shadow: 0 0 24px rgba(236,72,153,0.35), 0 0 36px rgba(168,85,247,0.25); }
+  }
+  .btn-glow {
+    position: relative;
+    animation: pulse-glow 2.4s ease-in-out infinite;
   }
 
   /* Respect reduced motion */
