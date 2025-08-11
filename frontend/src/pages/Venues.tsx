@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
-import { getUserLocation, geocodeNominatim, haversineKm, LatLng } from '@/lib/geo';
+import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass } from '@/lib/geo';
 
 export const Venues = () => {
   const location = useLocation();
@@ -40,6 +40,11 @@ export const Venues = () => {
   const [pois, setPois] = useState<GMapPOI[]>([]);
   const [poiFilter, setPoiFilter] = useState<'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport'>('all');
   const [customCenter, setCustomCenter] = useState<LatLng | null>(null);
+  const [showMore, setShowMore] = useState(false);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [minRating, setMinRating] = useState<'all' | '3' | '4'>('all');
+  const [rushFilter, setRushFilter] = useState<'all' | 'hot' | 'chill'>('all');
+
   const navigate = useNavigate();
 
   // Default location: IIT Gandhinagar
@@ -117,7 +122,6 @@ export const Venues = () => {
     })();
   }, [nearMe]);
 
-
   useEffect(() => {
     (async () => {
       const updates: { idx: number; lat: number; lng: number }[] = [];
@@ -192,8 +196,12 @@ export const Venues = () => {
     else if (priceRange === '1500-2000') matchesPrice = venue.price > 1500 && venue.price <= 2000;
     else if (priceRange === '2000+') matchesPrice = venue.price > 2000;
     const matchesRadius = !nearMe || (typeof venue.distanceKm === 'number' && venue.distanceKm <= radiusKm);
-    return matchesSearch && matchesSport && matchesPrice && matchesRadius;
+    const matchesAvailability = !availableOnly || venue.available;
+    const matchesRating = minRating === 'all' || (typeof venue.rating === 'number' && venue.rating >= Number(minRating));
+    const matchesRush = rushFilter === 'all' || venue.rushStatus === rushFilter;
+    return matchesSearch && matchesSport && matchesPrice && matchesRadius && matchesAvailability && matchesRating && matchesRush;
   });
+
   const sortedVenues = useMemo(() => {
     if (nearMe) {
       return [...filteredVenues].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
@@ -271,11 +279,61 @@ export const Venues = () => {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="border-border" onClick={() => setShowMore(v => !v)}>
               <Filter className="h-4 w-4 mr-2" />
-              More Filters
+              {showMore ? 'Hide Filters' : 'More Filters'}
             </Button>
           </div>
+          {showMore && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in-50">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={nearMe} onChange={(e) => setNearMe(e.target.checked)} />
+                Near me
+              </label>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Radius</span>
+                <input
+                  type="range"
+                  min={2}
+                  max={20}
+                  step={1}
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(Number(e.target.value))}
+                  disabled={!nearMe}
+                  className="flex-1"
+                />
+                <span className="text-sm w-10 text-right">{radiusKm} km</span>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={availableOnly} onChange={(e) => setAvailableOnly(e.target.checked)} />
+                Available only
+              </label>
+              <Select value={minRating} onValueChange={setMinRating}>
+                <SelectTrigger className="bg-background/50">
+                  <SelectValue placeholder="Min rating" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ratings</SelectItem>
+                  <SelectItem value="3">3.0+</SelectItem>
+                  <SelectItem value="4">4.0+</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="md:col-span-2 flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Rush</span>
+                <div className="flex gap-2">
+                  {(['all','hot','chill'] as const).map(k => (
+                    <Button key={k} size="sm" variant={rushFilter === k ? 'default' : 'outline'} onClick={() => setRushFilter(k)}>
+                      {k === 'all' ? 'Any' : k.charAt(0).toUpperCase() + k.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => { setAvailableOnly(false); setMinRating('all'); setRushFilter('all'); setNearMe(false); setRadiusKm(8); }}>Clear</Button>
+                <Button onClick={() => setShowMore(false)}>Apply</Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Near Me + Results Count */}
@@ -338,7 +396,16 @@ export const Venues = () => {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="secondary">{venue.sport}</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {venue.sports.slice(0, 3).map((s: string, idx: number) => (
+                        <Badge key={idx} variant="secondary">
+                          {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </Badge>
+                      ))}
+                      {venue.sports.length > 3 && (
+                        <Badge variant="secondary">+{venue.sports.length - 3} more</Badge>
+                      )}
+                    </div>
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
                       {typeof venue.distanceKm === 'number' && (
                         <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px]">{venue.distanceKm} km</span>

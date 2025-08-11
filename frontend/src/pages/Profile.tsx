@@ -64,53 +64,6 @@ export const Profile = () => {
     status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
     rating?: number;
   };
-  // Demo fallback data (restores previous mock cards)
-  const demoBookings: BookingItem[] = [
-    {
-      _id: 'demo-1',
-      venueId: 'demo-venue-1',
-      courtId: 'demo-court-1',
-      courtName: 'Ace Sports Complex · Court 1',
-      sport: 'Badminton',
-      dateTime: new Date('2024-01-25T18:00:00').toISOString(),
-      durationHours: 1,
-      price: 1200,
-      status: 'confirmed',
-    },
-    {
-      _id: 'demo-2',
-      venueId: 'demo-venue-2',
-      courtId: 'demo-court-2',
-      courtName: 'Court Champions · Court A',
-      sport: 'Tennis',
-      dateTime: new Date('2024-01-27T16:00:00').toISOString(),
-      durationHours: 1,
-      price: 1800,
-      status: 'confirmed',
-    },
-    {
-      _id: 'demo-3',
-      venueId: 'demo-venue-3',
-      courtId: 'demo-court-3',
-      courtName: 'Elite Badminton Center · Court 3',
-      sport: 'Badminton',
-      dateTime: new Date('2024-01-20T19:00:00').toISOString(),
-      durationHours: 1,
-      price: 1000,
-      status: 'completed',
-    },
-    {
-      _id: 'demo-4',
-      venueId: 'demo-venue-4',
-      courtId: 'demo-court-4',
-      courtName: 'Slam Dunk Arena · Main Court',
-      sport: 'Basketball',
-      dateTime: new Date('2024-01-15T20:00:00').toISOString(),
-      durationHours: 1,
-      price: 2000,
-      status: 'cancelled',
-    },
-  ];
   const [filter, setFilter] = useState<'all' | 'confirmed' | 'cancelled' | 'completed'>('all');
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [selectedRatings, setSelectedRatings] = useState<Record<string, number>>({});
@@ -134,11 +87,10 @@ export const Profile = () => {
       try {
         const res = await listBookings({ userId: user.id });
         const data = (res.data || []) as BookingItem[];
-        setBookings(data.length > 0 ? data : demoBookings);
+        setBookings(data);
       } catch (e) {
         console.error(e);
-        // On error, show demo data so page still looks populated
-        setBookings(demoBookings);
+        // On error, keep current state; UI will reflect empty or last known
       }
     }
     load();
@@ -159,16 +111,10 @@ export const Profile = () => {
   const handleCancelBooking = async (bookingId: string, dateTime: string) => {
     if (new Date(dateTime) <= now) return;
     try {
-      if (bookingId.startsWith('demo-')) {
-        // Local update for demo items
-        setBookings((prev) => prev.map((b) => (b._id === bookingId ? { ...b, status: 'cancelled' } : b)));
-        toast.success('Booking cancelled (demo)');
-      } else {
-        await cancelBookingApi(bookingId);
-        const res = await listBookings({ userId: user.id });
-        setBookings(res.data as BookingItem[]);
-        toast.success('Booking cancelled successfully!');
-      }
+      await cancelBookingApi(bookingId);
+      const res = await listBookings({ userId: user.id });
+      setBookings(res.data as BookingItem[]);
+      toast.success('Booking cancelled successfully!');
     } catch (e) {
       console.error(e);
     }
@@ -183,16 +129,10 @@ export const Profile = () => {
     if (!value) return;
     try {
       setSubmitting((p) => ({ ...p, [id]: true }));
-      if (id.startsWith('demo-')) {
-        // Local update for demo items
-        setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, rating: value } : b)));
-        toast.success('Rating submitted (demo)');
-      } else {
-        await rateBooking(id, value);
-        const res = await listBookings({ userId: user.id });
-        setBookings(res.data as BookingItem[]);
-        toast.success('Rating submitted');
-      }
+      await rateBooking(id, value);
+      const res = await listBookings({ userId: user.id });
+      setBookings(res.data as BookingItem[]);
+      toast.success('Rating submitted');
     } catch (e) {
       console.error(e);
     } finally {

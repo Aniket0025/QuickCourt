@@ -5,13 +5,15 @@ import { VenueModel } from '../models/Venue';
 
 const router = Router();
 
-// List bookings, optional filter by userId
+// List bookings, optional filter by userId or venueId, with optional limit
 router.get('/', async (req, res) => {
   try {
-    const { userId } = req.query as { userId?: string };
+    const { userId, venueId, limit } = req.query as { userId?: string; venueId?: string; limit?: string };
     const q: any = {};
     if (userId) q.userId = userId;
-    const data = await BookingModel.find(q).sort({ createdAt: -1 }).lean();
+    if (venueId) q.venueId = venueId;
+    const lim = Math.max(1, Math.min(Number(limit) || 50, 200));
+    const data = await BookingModel.find(q).sort({ createdAt: -1 }).limit(lim).lean();
     res.json({ data });
   } catch (e) {
     console.error(e);

@@ -6,11 +6,11 @@ import { z } from 'zod';
 
 const router = Router();
 
-// List venues (optional sport filter)
+// List venues (optional sport filter). Only approved venues are publicly listed.
 router.get('/', async (req, res) => {
   try {
     const { sport } = req.query as { sport?: string };
-    const q: any = {};
+    const q: any = { status: 'approved' };
     if (sport) {
       const esc = String(sport).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const rx = new RegExp(`^${esc}$`, 'i');
@@ -29,11 +29,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Featured venues for homepage (recent venues as default heuristic)
+// Featured venues for homepage (recent venues as default heuristic). Only approved venues.
 router.get('/featured', async (req, res) => {
   try {
     const limit = Math.max(1, Math.min(24, Number(req.query.limit) || 6));
-    const venues = await VenueModel.find({}, {
+    const venues = await VenueModel.find({ status: 'approved' }, {
       name: 1,
       sports: 1,
       address: 1,
