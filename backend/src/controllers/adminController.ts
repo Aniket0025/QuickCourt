@@ -31,3 +31,53 @@ export async function getAdminMetrics(_req: Request, res: Response) {
     return res.status(500).json({ error: 'Failed to load admin metrics' });
   }
 }
+
+export async function getAdmin7dStats(_req: Request, res: Response) {
+  try {
+    // last 7 calendar days including today
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 6);
+
+    const dateFormat = { format: '%Y-%m-%d', date: '$createdAt' } as any;
+
+    const [bookingsAgg, usersAgg] = await Promise.all([
+      BookingModel.aggregate([
+        { $match: { createdAt: { $gte: start } } },
+        { $group: { _id: { $dateToString: dateFormat }, count: { $sum: 1 } } },
+      ]),
+      UserModel.aggregate([
+        { $match: { createdAt: { $gte: start } } },
+        { $group: { _id: { $dateToString: dateFormat }, count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    // map to full 7-day range, fill missing with 0
+    const dayLabels: string[] = [];
+    const bookingsPerDay: number[] = [];
+    const registrationsPerDay: number[] = [];
+
+    const byDate = (arr: { _id: string; count: number }[]) => {
+      const m = new Map<string, number>();
+      for (const it of arr) m.set(it._id, it.count);
+      return m;
+    };
+    const bMap = byDate(bookingsAgg as any);
+    const uMap = byDate(usersAgg as any);
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+      dayLabels.push(key);
+      bookingsPerDay.push(bMap.get(key) || 0);
+      registrationsPerDay.push(uMap.get(key) || 0);
+    }
+
+    return res.json({ dayLabels, bookingsPerDay, registrationsPerDay });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to load 7d stats' });
+  }
+}
