@@ -3,10 +3,27 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Users, Zap, Shield, Star, CheckCircle2, MessageCircle, TrendingUp, Clock, Heart, User, PenSquare, Trash2 } from 'lucide-react';
 import SplitText from '@/components/SplitText';
-import { Calendar, MapPin, Star, Users, Zap, Shield, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Calendar, 
+  MapPin, 
+  Users, 
+  Zap, 
+  Shield, 
+  Star, 
+  Clock, 
+  ChevronLeft, 
+  ChevronRight, 
+  CheckCircle2, 
+  MessageCircle, 
+  TrendingUp, 
+  Heart, 
+  User, 
+  PenSquare, 
+  Trash2 
+} from 'lucide-react';
 import heroImage from '@/assets/hero-sports.jpg';
+
 import { useEffect, useRef, useState } from 'react';
 import { getPopularSports, type PopularSport, getFeaturedVenues, type VenueSummary } from '@/lib/api';
 import { Input } from '@/components/ui/input';
