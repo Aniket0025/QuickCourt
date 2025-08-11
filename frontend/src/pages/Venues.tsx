@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
 import GoogleMapView, { type MapVenue as GMapVenue, type MapPOI as GMapPOI } from '@/components/map/GoogleMapView';
-import { getUserLocation, geocodeNominatim, haversineKm, LatLng } from '@/lib/geo';
+import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass } from '@/lib/geo';
 
 export const Venues = () => {
   const location = useLocation();
@@ -347,7 +347,16 @@ export const Venues = () => {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="secondary">{venue.sport}</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {venue.sports.slice(0, 3).map((s: string, idx: number) => (
+                        <Badge key={idx} variant="secondary">
+                          {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </Badge>
+                      ))}
+                      {venue.sports.length > 3 && (
+                        <Badge variant="secondary">+{venue.sports.length - 3} more</Badge>
+                      )}
+                    </div>
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
                       {typeof venue.distanceKm === 'number' && (
                         <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px]">{venue.distanceKm} km</span>
