@@ -11,7 +11,13 @@ export const Auth = () => {
 
   // Redirect if user is already authenticated
   if (user) {
-    return <Navigate to="/" replace />;
+    const target =
+      user.role === 'admin'
+        ? '/dashboard/admin'
+        : user.role === 'facility_owner'
+        ? '/dashboard/facility'
+        : '/dashboard/user';
+    return <Navigate to={target} replace />;
   }
 
   return (
