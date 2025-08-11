@@ -4,7 +4,7 @@ import { connectDB } from './config/db';
 import { UserModel } from './models/User';
 
 async function run() {
-  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/QuickCourt';
+  const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://shreya:shreya123@oddo.8vdawkj.mongodb.net/?retryWrites=true&w=majority&appName=oddo';
   await connectDB(MONGO_URI);
 
   const email = 'aniket93yadav@gmail.com';
