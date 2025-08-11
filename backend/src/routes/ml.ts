@@ -33,6 +33,19 @@ function dowCurve(dow: number) {
   return 0.1; // weekdays base
 }
 
+// Simple in-memory cache (5 minutes default)
+type CacheEntry<T> = { value: T; expires: number };
+const cache = new Map<string, CacheEntry<any>>();
+function getCache<T>(key: string): T | undefined {
+  const e = cache.get(key);
+  if (!e) return undefined;
+  if (Date.now() > e.expires) { cache.delete(key); return undefined; }
+  return e.value as T;
+}
+function setCache<T>(key: string, val: T, ttlMs = 5 * 60 * 1000) { // 5m
+  cache.set(key, { value: val, expires: Date.now() + ttlMs });
+}
+
 router.post('/predict-rush', (req, res) => {
   try {
     const { venueId, courtId, dateTime, durationHours = 1, outdoor = false } = req.body || {};
@@ -49,15 +62,21 @@ router.post('/predict-rush', (req, res) => {
     // weatherAdj: simple stub, reduce evenings slightly if outdoor and late
     const weatherAdj = outdoor && (hour >= 18 || hour <= 6) ? -0.05 : 0;
 
+    const cacheKey = `rush:${venueId}:${courtId}:${dt.toISOString().slice(0,13)}:out${outdoor}`;
+    const cached = getCache<any>(cacheKey);
+    if (cached) return res.json(cached);
+
     let rushScore = clamp01(0.15 + h + d + venueBias + courtBias + weatherAdj);
     // normalize into 0..1 softly
     rushScore = clamp01(rushScore / 1.4);
 
-    return res.json({
+    const payload = {
       rushScore,
       factors: { hour, dow, venueBias: Number(venueBias.toFixed(3)), courtBias: Number(courtBias.toFixed(3)), weather: weatherAdj },
       durationHours,
-    });
+    };
+    setCache(cacheKey, payload);
+    return res.json(payload);
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Failed to predict rush' });
@@ -93,17 +112,69 @@ router.post('/predict-price', (req, res) => {
     const suggested = Math.round(basePrice * cappedMult);
     const capApplied = rawMult > cappedMult;
 
-    return res.json({
+    const payload = {
       suggestedPrice: suggested,
       rushScore: effectiveRush,
       capApplied,
       factors: { hour, dow, venueBias: Number(venueBias.toFixed(3)), courtBias: Number(courtBias.toFixed(3)), weather: weatherAdj },
       basePrice,
       durationHours,
-    });
+    };
+    const cacheKey = `price:${venueId}:${courtId}:${dt.toISOString().slice(0,13)}:p${basePrice}:b${bench}:k${k}:c${cap}:o${outdoor}`;
+    setCache(cacheKey, payload);
+    return res.json(payload);
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Failed to predict price' });
+  }
+});
+
+// Batch endpoint
+router.post('/predict-price-batch', (req, res) => {
+  try {
+    const { venueId, courtId, items = [], benchmarkPrice, k = 0.6, cap = 0.3, outdoor = false } = req.body || {};
+    if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
+    const results = items.map((it: any) => {
+      const { dateTime, basePrice = 500, durationHours = 1 } = it || {};
+      const dt = dateTime ? new Date(dateTime) : new Date();
+      const hour = dt.getHours();
+      const dow = dt.getDay();
+
+      const hourCurve = [0.2,0.15,0.12,0.1,0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.85,0.9,0.85,0.7,0.5,0.35,0.25];
+      const dayCurve  = [0.5,0.45,0.5,0.55,0.6,0.8,0.9];
+      const h = hourCurve[hour] || 0.4;
+      const d = dayCurve[dow] || 0.5;
+      const venueBias = (hashString(String(venueId)) - 0.5) * 0.2;
+      const courtBias = (hashString(String(courtId)) - 0.5) * 0.15;
+      const weatherAdj = outdoor ? -0.05 : 0;
+      let rushScore = clamp01(0.15 + h + d + venueBias + courtBias + weatherAdj);
+      rushScore = clamp01(rushScore / 1.4);
+
+      const bench = typeof benchmarkPrice === 'number' && benchmarkPrice > 0 ? benchmarkPrice : basePrice;
+      const rel = bench > 0 ? basePrice / bench : 1;
+      const elasticity = 0.8;
+      const priceAdj = clamp01(1 - elasticity * (rel - 1));
+      const effectiveRush = clamp01(rushScore * Math.max(0.3, Math.min(1, priceAdj)));
+
+      const rawMult = 1 + k * effectiveRush;
+      const cappedMult = Math.min(1 + cap, rawMult);
+      const suggested = Math.round(basePrice * cappedMult);
+      const capApplied = rawMult > cappedMult;
+
+      return {
+        dateTime: dt.toISOString(),
+        suggestedPrice: suggested,
+        rushScore: effectiveRush,
+        capApplied,
+        factors: { hour, dow, venueBias: Number(venueBias.toFixed(3)), courtBias: Number(courtBias.toFixed(3)), weather: weatherAdj },
+        basePrice,
+        durationHours
+      };
+    });
+    return res.json({ items: results });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to predict price batch' });
   }
 });
 

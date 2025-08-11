@@ -20,6 +20,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+// List venues for the authenticated owner/admin
+router.get('/mine', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthenticated' });
+    // Admins can see all venues; facility owners see only their own
+    const filter = req.user.role === 'admin' ? {} : { ownerId: req.user.userId };
+    const venues = await VenueModel.find(filter).lean();
+    res.json({ data: venues });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to fetch your venues' });
+  }
+});
+
 // Create a venue
 router.post('/', requireAuth, async (req: AuthedRequest, res) => {
   try {
@@ -59,6 +73,42 @@ router.get('/:id', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Failed to fetch venue' });
+  }
+});
+
+// Add available slots to a court
+router.post('/:id/courts/:courtId/slots', async (req, res) => {
+  try {
+    const { id, courtId } = req.params;
+    if (!isValidObjectId(id) || !isValidObjectId(courtId)) {
+      return res.status(400).json({ error: 'Invalid id(s)' });
+    }
+    const schema = z.object({
+      slots: z.array(z.string().datetime()).min(1),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid payload', issues: parsed.error.flatten() });
+
+    const venue = await VenueModel.findById(id);
+    if (!venue) return res.status(404).json({ error: 'Venue not found' });
+    // @ts-ignore
+    const court: any = venue.courts?.find((c: any) => String(c._id) === courtId);
+    if (!court) return res.status(404).json({ error: 'Court not found' });
+
+    const toAdd = parsed.data.slots.map(s => new Date(s));
+    const existing: Date[] = (court.availableSlots || []).map((d: Date) => new Date(d));
+    const exists = new Set(existing.map(d => d.getTime()));
+    toAdd.forEach(d => {
+      if (!exists.has(d.getTime())) existing.push(d);
+    });
+    // sort chronologically
+    existing.sort((a, b) => a.getTime() - b.getTime());
+    court.availableSlots = existing;
+    await venue.save();
+    return res.status(200).json({ data: court });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to add slots' });
   }
 });
 
