@@ -164,8 +164,16 @@
   /* Card with gradient background */
   .card-gradient {
     background: var(--gradient-card);
-    backdrop-filter: blur(10px);
-    border: 1px solid hsl(var(--border));
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.8);
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  /* Subtle grow on hover */
+  .hover-grow:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-elevated);
+    border-color: hsl(var(--ring));
   }
 
   /* Text gradients */

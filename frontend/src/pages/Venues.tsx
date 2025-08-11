@@ -6,29 +6,50 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapPin, Star, Search, Filter, Calendar } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { listVenues } from '@/lib/api';
+import { listVenues, predictRush } from '@/lib/api';
 import { toast } from 'sonner';
+import OSMMap, { MapVenue } from '@/components/map/OSMMap';
+import { getUserLocation, geocodeNominatim, haversineKm, LatLng, fetchSportsPOIsOverpass, SportsPOI } from '@/lib/geo';
 
 export const Venues = () => {
   const location = useLocation();
-  const navigate = useNavigate();
+  type AvailableSlotRaw = { start?: string; end?: string; dateTime?: string };
+  type CourtRaw = { _id: string; pricePerHour?: number; outdoor?: boolean; availableSlots?: AvailableSlotRaw[] };
+  type VenueRaw = {
+    _id: string;
+    name: string;
+    address: string;
+    lat?: number; // optional coordinates if available from backend
+    lng?: number;
+    photos?: string[];
+    amenities?: string[];
+    sports?: string[];
+    courts?: CourtRaw[];
+    reviews?: { rating?: number }[];
+  };
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
+  const [venues, setVenues] = useState<VenueRaw[]>([]);
   const [loading, setLoading] = useState(true);
-  const [venues, setVenues] = useState<any[]>([]);
+  const [rushMap, setRushMap] = useState<Record<string, 'hot' | 'chill' | undefined>>({});
+  const [nearMe, setNearMe] = useState(false);
+  const [userLoc, setUserLoc] = useState<LatLng | null>(null);
+  const [radiusKm, setRadiusKm] = useState(8);
+  const [pois, setPois] = useState<SportsPOI[]>([]);
+  const [poiFilter, setPoiFilter] = useState<'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport'>('all');
+  const [customCenter, setCustomCenter] = useState<LatLng | null>(null);
+  const navigate = useNavigate();
 
-  // Initialize selectedSport from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const sportParam = params.get('sport');
     if (sportParam) {
       setSelectedSport(sportParam.toLowerCase());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch venues when selectedSport changes (server-side filter)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -39,14 +60,90 @@ export const Venues = () => {
         const data = (res as any)?.data || [];
         if (!mounted) return;
         setVenues(data);
-      } catch (e: any) {
-        toast.error(e?.message || 'Failed to load venues');
+      } catch (e: unknown) {
+        const msg = (e && typeof e === 'object' && 'message' in e && typeof (e as { message?: unknown }).message === 'string')
+          ? String((e as { message?: unknown }).message)
+          : 'Failed to load venues';
+        toast.error(msg);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
   }, [selectedSport]);
+
+  useEffect(() => {
+    (async () => {
+      if (!venues?.length) return;
+      try {
+        const now = new Date();
+        const tasks = venues.map(async (v: VenueRaw) => {
+          const first: CourtRaw | undefined = Array.isArray(v.courts) ? v.courts[0] : undefined;
+          if (!first) return { id: v._id, status: undefined as undefined | 'hot' | 'chill' };
+          try {
+            const res = await predictRush({
+              venueId: v._id,
+              courtId: first._id,
+              dateTime: now.toISOString(),
+              durationHours: 1,
+              outdoor: Boolean(first.outdoor)
+            });
+            const status: 'hot' | 'chill' | undefined = res.rushScore >= 0.7 ? 'hot' : res.rushScore <= 0.35 ? 'chill' : undefined;
+            return { id: v._id, status };
+          } catch {
+            return { id: v._id, status: undefined };
+          }
+        });
+        const results = await Promise.all(tasks);
+        const m: Record<string, 'hot' | 'chill' | undefined> = {};
+        results.forEach(r => { if (r) m[r.id] = r.status; });
+        setRushMap(m);
+      } catch (e) {
+        console.error('rush badges compute failed', e);
+      }
+    })();
+  }, [venues]);
+
+  useEffect(() => {
+    (async () => {
+      if (!nearMe) return;
+      const loc = await getUserLocation();
+      if (!loc) toast('Location unavailable');
+      setUserLoc(loc);
+    })();
+  }, [nearMe]);
+
+  useEffect(() => {
+    (async () => {
+      if (!nearMe || !userLoc) { setPois([]); return; }
+      try {
+        const data = await fetchSportsPOIsOverpass(userLoc, radiusKm);
+        setPois(data);
+      } catch {
+        setPois([]);
+      }
+    })();
+  }, [nearMe, userLoc, radiusKm]);
+
+  useEffect(() => {
+    (async () => {
+      const updates: { idx: number; lat: number; lng: number }[] = [];
+      const tasks = venues.map(async (v, idx) => {
+        if (typeof v.lat === 'number' && typeof v.lng === 'number') return;
+        if (!v.address) return;
+        const ll = await geocodeNominatim(v.address);
+        if (ll) updates.push({ idx, lat: ll.lat, lng: ll.lng });
+      });
+      await Promise.all(tasks);
+      if (updates.length) {
+        setVenues(prev => {
+          const copy = [...prev];
+          updates.forEach(u => { copy[u.idx] = { ...copy[u.idx], lat: u.lat, lng: u.lng }; });
+          return copy;
+        });
+      }
+    })();
+  }, [venues]);
 
   const sports = ['all', 'badminton', 'tennis', 'basketball', 'squash', 'football', 'table tennis'];
 
@@ -58,19 +155,21 @@ export const Venues = () => {
   ];
 
   const mapped = useMemo(() => {
-    return venues.map((v) => {
-      const courts = Array.isArray(v.courts) ? v.courts : [];
-      const price = courts.length ? Math.min(...courts.map((c: any) => c.pricePerHour || 0)) : 0;
-      const reviews = Array.isArray(v.reviews) ? v.reviews : [];
+    return venues.map((v: VenueRaw) => {
+      const courts: CourtRaw[] = Array.isArray(v.courts) ? v.courts : [];
+      const price = courts.length ? Math.min(...courts.map((c: CourtRaw) => c.pricePerHour || 0)) : 0;
+      const reviews = Array.isArray(v.reviews) ? v.reviews as { rating?: number }[] : [];
       const rating = reviews.length
-        ? Number((reviews.reduce((a: number, r: any) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
+        ? Number((reviews.reduce((a: number, r: { rating?: number }) => a + (r.rating || 0), 0) / reviews.length).toFixed(1))
         : undefined;
-      const available = courts.some((c: any) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
+      const available = courts.some((c: CourtRaw) => Array.isArray(c.availableSlots) && c.availableSlots.length > 0);
+      const coord: LatLng | null = (typeof v.lat === 'number' && typeof v.lng === 'number') ? { lat: v.lat, lng: v.lng } : null;
+      const distanceKm = (nearMe && userLoc && coord) ? Number(haversineKm(userLoc, coord).toFixed(2)) : undefined;
       const allSportsLower = new Set([
         ...((v.sports || []) as string[]).map((s) => String(s).toLowerCase()),
-        ...courts.map((c: any) => String(c.sport || '').toLowerCase()),
+        ...courts.map((c: any) => String((c as any).sport || '').toLowerCase()),
       ].filter(Boolean));
-      const primarySport = (v.sports && v.sports[0]) || (courts[0]?.sport) || 'Multi-sport';
+      const primarySport = (v.sports && v.sports[0]) || ((courts as any)[0]?.sport) || 'Multi-sport';
       return {
         id: v._id,
         name: v.name,
@@ -83,20 +182,45 @@ export const Venues = () => {
         courts: courts.length,
         available,
         photo: (Array.isArray(v.photos) && v.photos[0]) || undefined,
+        rushStatus: rushMap[v._id],
+        lat: coord?.lat,
+        lng: coord?.lng,
+        distanceKm,
       };
     });
-  }, [venues]);
+  }, [venues, rushMap, nearMe, userLoc]);
 
   const filteredVenues = mapped.filter(venue => {
     const matchesSearch = venue.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         venue.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSport = selectedSport === 'all' || venue.sports.map((s: string)=> s.toLowerCase()).includes(selectedSport);
+      venue.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSport = selectedSport === 'all' || venue.sports.map((s: string) => s.toLowerCase()).includes(selectedSport);
     let matchesPrice = true;
     if (priceRange === '0-1500') matchesPrice = venue.price <= 1500;
     else if (priceRange === '1500-2000') matchesPrice = venue.price > 1500 && venue.price <= 2000;
     else if (priceRange === '2000+') matchesPrice = venue.price > 2000;
-    return matchesSearch && matchesSport && matchesPrice;
+    const matchesRadius = !nearMe || (typeof venue.distanceKm === 'number' && venue.distanceKm <= radiusKm);
+    return matchesSearch && matchesSport && matchesPrice && matchesRadius;
   });
+  const sortedVenues = useMemo(() => {
+    if (nearMe) {
+      return [...filteredVenues].sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+    }
+    return filteredVenues;
+  }, [filteredVenues, nearMe]);
+
+  const filteredPois = useMemo(() => {
+    if (poiFilter === 'all') return pois;
+    const normalize = (k?: string): string => {
+      const s = (k || '').toLowerCase();
+      if (s.includes('stadium')) return 'stadium';
+      if (s.includes('sports_centre') || s.includes('sports centre')) return 'sports_centre';
+      if (s.includes('pitch')) return 'pitch';
+      if (s.includes('fitness')) return 'fitness_centre';
+      if (s.includes('sport')) return 'sport';
+      return 'other';
+    };
+    return pois.filter(p => normalize(p.kind) === poiFilter);
+  }, [pois, poiFilter]);
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -122,13 +246,13 @@ export const Venues = () => {
                 className="pl-10 bg-background/50"
               />
             </div>
-            
+
             <Select value={selectedSport} onValueChange={(val) => {
-               setSelectedSport(val);
-               const params = new URLSearchParams(location.search);
-               if (val === 'all') params.delete('sport'); else params.set('sport', val);
-               navigate({ search: params.toString() }, { replace: true });
-             }}>
+              setSelectedSport(val);
+              const params = new URLSearchParams(location.search);
+              if (val === 'all') params.delete('sport'); else params.set('sport', val);
+              navigate({ search: params.toString() }, { replace: true });
+            }}>
               <SelectTrigger className="bg-background/50">
                 <SelectValue placeholder="Sport Type" />
               </SelectTrigger>
@@ -161,11 +285,13 @@ export const Venues = () => {
           </div>
         </div>
 
-        {/* Results Count */}
+        {/* Near Me + Results Count */}
         <div className="mb-6">
-          <p className="text-muted-foreground">
-            Found {filteredVenues.length} venue{filteredVenues.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-muted-foreground">
+              Found {sortedVenues.length} venue{sortedVenues.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
 
         {/* Venues Grid */}
@@ -173,20 +299,30 @@ export const Venues = () => {
           {loading && (
             <div className="md:col-span-2 lg:col-span-3 text-center text-muted-foreground">Loading venues...</div>
           )}
-          {!loading && filteredVenues.map((venue) => (
+          {!loading && sortedVenues.map((venue) => (
             <Card key={venue.id} className="card-gradient hover-lift border-border/50 overflow-hidden">
-              <div className="h-48 bg-muted/50 flex items-center justify-center relative">
+              <div className="relative h-44 overflow-hidden">
                 {venue.photo ? (
                   <img
                     src={venue.photo}
                     alt={venue.name}
                     className="absolute inset-0 w-full h-full object-cover"
-                    loading="lazy"
                   />
                 ) : (
                   <div className="absolute inset-0 w-full h-full bg-muted" />
                 )}
                 <div className="absolute inset-0 bg-black/20" />
+                {/* Hot/Chill badges */}
+                {venue.rushStatus === 'hot' && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="destructive">Hot Now</Badge>
+                  </div>
+                )}
+                {venue.rushStatus === 'chill' && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="secondary">Chill Now</Badge>
+                  </div>
+                )}
                 {!venue.available && (
                   <div className="absolute top-2 right-2">
                     <Badge variant="destructive">Fully Booked</Badge>
@@ -210,7 +346,10 @@ export const Venues = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Badge variant="secondary">{venue.sport}</Badge>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      {typeof venue.distanceKm === 'number' && (
+                        <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px]">{venue.distanceKm} km</span>
+                      )}
                       {venue.courts} court{venue.courts !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -254,10 +393,100 @@ export const Venues = () => {
               </CardContent>
             </Card>
           ))}
+
+            {!loading && sortedVenues.length > 0 && (
+              <div className="mt-8">
+                <OSMMap
+                  venues={sortedVenues.filter(v=> typeof v.lat==='number' && typeof v.lng==='number').map(v=> ({
+                    id: v.id,
+                    name: v.name,
+                    lat: v.lat as number,
+                    lng: v.lng as number,
+                    price: v.price,
+                    rush: v.rushStatus,
+                  })) as MapVenue[]}
+                  user={userLoc}
+                  center={customCenter || undefined}
+                  height={360}
+                  onNavigate={(id)=>navigate(`/venues/${id}`)}
+                  pois={filteredPois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
+                />
+
+                {/* Controls moved below map */}
+                <div className="mt-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={nearMe} onChange={(e)=>setNearMe(e.target.checked)} />
+                      Near Me
+                    </label>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span>{radiusKm} km</span>
+                      <input
+                        type="range"
+                        min={2}
+                        max={25}
+                        step={1}
+                        value={radiusKm}
+                        onChange={(e)=>setRadiusKm(Number(e.target.value))}
+                        className="w-40 cursor-pointer"
+                      />
+                    </div>
+                    <select
+                      value={poiFilter}
+                      onChange={(e)=>{
+                        const v = e.target.value as 'all' | 'stadium' | 'sports_centre' | 'pitch' | 'fitness_centre' | 'sport';
+                        setPoiFilter(v);
+                      }}
+                      className="text-sm bg-background/50 border rounded px-2 py-1"
+                      title="Filter public sports places"
+                    >
+                      <option value="all">All POIs</option>
+                      <option value="stadium">Stadiums</option>
+                      <option value="sports_centre">Sports centres</option>
+                      <option value="pitch">Pitches</option>
+                      <option value="fitness_centre">Fitness centres</option>
+                      <option value="sport">Other sport-tag</option>
+                    </select>
+                  </div>
+
+                  {/* Map search / recenter */}
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
+                    <input
+                      value={locationQuery}
+                      onChange={(e)=>setLocationQuery(e.target.value)}
+                      placeholder="Search place or paste lat,lng"
+                      className="text-sm bg-background/50 border rounded px-2 py-1 w-full md:w-64"
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={async ()=>{
+                        const q = locationQuery.trim();
+                        if (!q) return;
+                        const m = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+                        if (m) {
+                          const lat = Number(m[1]);
+                          const lng = Number(m[2]);
+                          if (isFinite(lat) && isFinite(lng)) { setCustomCenter({ lat, lng }); return; }
+                        }
+                        const ll = await geocodeNominatim(q);
+                        if (ll) setCustomCenter(ll);
+                        else toast('Place not found');
+                      }}>Search</Button>
+                      <Button variant="secondary" onClick={async ()=>{
+                        const loc = await getUserLocation();
+                        if (loc) { setUserLoc(loc); setCustomCenter(loc); }
+                        else toast('Location unavailable');
+                      }}>Use My Location</Button>
+                      <Button variant="ghost" onClick={()=>{ setCustomCenter(null); setLocationQuery(''); }}>Clear</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
         </div>
 
         {/* No Results */}
-        {filteredVenues.length === 0 && (
+        {(!loading && filteredVenues.length === 0) && (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
               <Search className="h-12 w-12 text-muted-foreground" />
