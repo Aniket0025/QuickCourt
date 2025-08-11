@@ -1,7 +1,7 @@
 import jwt, { SignOptions, Secret } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const JWT_EXPIRES = process.env.JWT_EXPIRES || '7d';
+const JWT_SECRET: string = process.env.JWT_SECRET ?? 'dev_secret_change_me';
+const JWT_EXPIRES: string | number = process.env.JWT_EXPIRES ?? '7d';
 
 export type JwtPayload = {
   userId: string;
@@ -15,5 +15,5 @@ export function signToken(payload: JwtPayload) {
 }
 
 export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, JWT_SECRET as Secret) as JwtPayload;
 }
