@@ -78,4 +78,24 @@ router.patch('/:id/cancel', async (req, res) => {
   }
 });
 
+// Rate a completed booking
+const RateSchema = z.object({ rating: z.number().int().min(1).max(5) });
+router.patch('/:id/rate', async (req, res) => {
+  try {
+    const parsed = RateSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.format() });
+
+    const booking = await BookingModel.findById(req.params.id);
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.status !== 'completed') return res.status(400).json({ error: 'Only completed bookings can be rated' });
+
+    booking.rating = parsed.data.rating;
+    await booking.save();
+    return res.json({ data: booking.toObject() });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to rate booking' });
+  }
+});
+
 export default router;

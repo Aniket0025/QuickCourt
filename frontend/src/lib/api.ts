@@ -27,7 +27,7 @@ export async function apiFetch(path: string, init?: RequestInit) {
     try {
       const err = await res.json();
       message = typeof err?.error === 'string' ? err.error : message;
-    } catch {}
+    } catch { }
     throw new Error(message);
   }
   return res.json();
@@ -72,4 +72,17 @@ export type AdminMetrics = {
 
 export async function getAdminMetrics(): Promise<AdminMetrics> {
   return apiFetch('/api/admin/metrics', { method: 'GET' });
+  export async function rateBooking(id: string, rating: number) {
+    return apiFetch(`/api/bookings/${id}/rate`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rating }),
+    });
+  }
+
+  export async function submitFeedback(payload: { bookingId: string; message: string; rating?: number }) {
+    return apiFetch('/api/feedback', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 }

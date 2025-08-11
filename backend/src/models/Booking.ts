@@ -9,7 +9,8 @@ const bookingSchema = new Schema({
   dateTime: { type: Date, required: true },
   durationHours: { type: Number, min: 1, max: 12, required: true },
   price: { type: Number, required: true },
-  status: { type: String, enum: ['confirmed', 'cancelled', 'completed', 'pending'], default: 'confirmed' }
+  status: { type: String, enum: ['confirmed', 'cancelled', 'completed', 'pending'], default: 'confirmed' },
+  rating: { type: Number, min: 1, max: 5 }
 }, { timestamps: true });
 
 export type Booking = InferSchemaType<typeof bookingSchema> & { _id: string };

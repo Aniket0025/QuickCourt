@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,26 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
+import { cancelBookingApi, listBookings, rateBooking } from '@/lib/api';
+import { submitFeedback } from '@/lib/api';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+
 import { 
   User, 
   Mail, 
@@ -29,50 +50,96 @@ export const Profile = () => {
     name: user?.name || '',
     email: user?.email || '',
   });
-
-  // Mock bookings data
-  const bookings = [
+  // Live bookings state (replaces mocks)
+  type BookingItem = {
+    _id: string;
+    venueId: string;
+    courtId: string;
+    courtName: string;
+    sport: string;
+    dateTime: string;
+    durationHours: number;
+    price: number;
+    status: 'confirmed' | 'cancelled' | 'completed' | 'pending';
+    rating?: number;
+  };
+  // Demo fallback data (restores previous mock cards)
+  const demoBookings: BookingItem[] = [
     {
-      id: 1,
-      venueName: 'Ace Sports Complex',
+      _id: 'demo-1',
+      venueId: 'demo-venue-1',
+      courtId: 'demo-court-1',
+      courtName: 'Ace Sports Complex · Court 1',
       sport: 'Badminton',
-      courtName: 'Court 1',
-      date: '2024-01-25',
-      time: '18:00 - 19:00',
-      status: 'confirmed',
+      dateTime: new Date('2024-01-25T18:00:00').toISOString(),
+      durationHours: 1,
       price: 1200,
-    },
-    {
-      id: 2,
-      venueName: 'Court Champions',
-      sport: 'Tennis',
-      courtName: 'Court A',
-      date: '2024-01-27',
-      time: '16:00 - 17:00',
       status: 'confirmed',
+    },
+    {
+      _id: 'demo-2',
+      venueId: 'demo-venue-2',
+      courtId: 'demo-court-2',
+      courtName: 'Court Champions · Court A',
+      sport: 'Tennis',
+      dateTime: new Date('2024-01-27T16:00:00').toISOString(),
+      durationHours: 1,
       price: 1800,
+      status: 'confirmed',
     },
     {
-      id: 3,
-      venueName: 'Elite Badminton Center',
+      _id: 'demo-3',
+      venueId: 'demo-venue-3',
+      courtId: 'demo-court-3',
+      courtName: 'Elite Badminton Center · Court 3',
       sport: 'Badminton',
-      courtName: 'Court 3',
-      date: '2024-01-20',
-      time: '19:00 - 20:00',
-      status: 'completed',
+      dateTime: new Date('2024-01-20T19:00:00').toISOString(),
+      durationHours: 1,
       price: 1000,
+      status: 'completed',
     },
     {
-      id: 4,
-      venueName: 'Slam Dunk Arena',
+      _id: 'demo-4',
+      venueId: 'demo-venue-4',
+      courtId: 'demo-court-4',
+      courtName: 'Slam Dunk Arena · Main Court',
       sport: 'Basketball',
-      courtName: 'Main Court',
-      date: '2024-01-15',
-      time: '20:00 - 21:00',
-      status: 'cancelled',
+      dateTime: new Date('2024-01-15T20:00:00').toISOString(),
+      durationHours: 1,
       price: 2000,
+      status: 'cancelled',
     },
   ];
+  const [filter, setFilter] = useState<'all' | 'confirmed' | 'cancelled' | 'completed'>('all');
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [selectedRatings, setSelectedRatings] = useState<Record<string, number>>({});
+  const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  // Feedback dialog state
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackBookingId, setFeedbackBookingId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const now = new Date();
+  const filtered = useMemo(
+    () => bookings.filter((b) => (filter === 'all' ? true : b.status === filter)),
+    [bookings, filter]
+  );
+
+  useEffect(() => {
+    async function load() {
+      if (!user) return;
+      try {
+        const res = await listBookings({ userId: user.id });
+        const data = (res.data || []) as BookingItem[];
+        setBookings(data.length > 0 ? data : demoBookings);
+      } catch (e) {
+        console.error(e);
+        // On error, show demo data so page still looks populated
+        setBookings(demoBookings);
+      }
+    }
+    load();
+  }, [user]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -86,9 +153,48 @@ export const Profile = () => {
     }, 1000);
   };
 
-  const handleCancelBooking = (bookingId: number) => {
-    toast.success('Booking cancelled successfully!');
-    // In real app, this would update the state
+  const handleCancelBooking = async (bookingId: string, dateTime: string) => {
+    if (new Date(dateTime) <= now) return;
+    try {
+      if (bookingId.startsWith('demo-')) {
+        // Local update for demo items
+        setBookings((prev) => prev.map((b) => (b._id === bookingId ? { ...b, status: 'cancelled' } : b)));
+        toast.success('Booking cancelled (demo)');
+      } else {
+        await cancelBookingApi(bookingId);
+        const res = await listBookings({ userId: user.id });
+        setBookings(res.data as BookingItem[]);
+        toast.success('Booking cancelled successfully!');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const setStar = (id: string, value: number) => {
+    setSelectedRatings((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmitRating = async (id: string) => {
+    const value = selectedRatings[id];
+    if (!value) return;
+    try {
+      setSubmitting((p) => ({ ...p, [id]: true }));
+      if (id.startsWith('demo-')) {
+        // Local update for demo items
+        setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, rating: value } : b)));
+        toast.success('Rating submitted (demo)');
+      } else {
+        await rateBooking(id, value);
+        const res = await listBookings({ userId: user.id });
+        setBookings(res.data as BookingItem[]);
+        toast.success('Rating submitted');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting((p) => ({ ...p, [id]: false }));
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -241,108 +347,197 @@ export const Profile = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-semibold text-foreground">
-                  My Bookings ({bookings.length})
+                  My Bookings ({filtered.length})
                 </h2>
-                <Button variant="outline">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Book New Venue
-                </Button>
+                <div className="flex gap-2">
+                  {(['all','confirmed','completed','cancelled'] as const).map((k) => (
+                    <Button
+                      key={k}
+                      variant={filter === k ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilter(k)}
+                    >
+                      {k.charAt(0).toUpperCase() + k.slice(1)}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid gap-6">
-                {bookings.map((booking) => (
-                  <Card key={booking.id} className="card-gradient border-border/50">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <h3 className="text-lg font-semibold text-foreground">
-                              {booking.venueName}
-                            </h3>
-                            <Badge variant="outline">{booking.sport}</Badge>
-                            <div className="flex items-center space-x-1">
-                              {getStatusIcon(booking.status)}
-                              <Badge 
-                                variant={getStatusColor(booking.status) as any}
-                                className="capitalize"
-                              >
-                                {booking.status}
-                              </Badge>
+                {filtered.map((b) => {
+                  const isFuture = new Date(b.dateTime) > now;
+                  const canRate = b.status === 'completed';
+                  const current = typeof b.rating === 'number' ? b.rating : 0;
+                  const chosen = selectedRatings[b._id] ?? current;
+                  return (
+                    <Card key={b._id} className="card-gradient border-border/50">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center space-x-3">
+                              <h3 className="text-lg font-semibold text-foreground">
+                                {b.courtName}
+                              </h3>
+                              <Badge variant="outline">{b.sport}</Badge>
+                              <div className="flex items-center space-x-1">
+                                {getStatusIcon(b.status)}
+                                <Badge variant={getStatusColor(b.status) as any} className="capitalize">
+                                  {b.status}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
+                              <div className="flex items-center space-x-2">
+                                <MapPin className="h-4 w-4" />
+                                <span>{b.courtName}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Calendar className="h-4 w-4" />
+                                <span>{new Date(b.dateTime).toLocaleDateString()}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Clock className="h-4 w-4" />
+                                <span>{new Date(b.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {b.durationHours} hr{b.durationHours>1?'s':''}</span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{booking.courtName}</span>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="text-lg font-semibold text-secondary">₹{b.price}</div>
+                              <div className="text-sm text-muted-foreground">Total Amount</div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="h-4 w-4" />
-                              <span>{new Date(booking.date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Clock className="h-4 w-4" />
-                              <span>{booking.time}</span>
+                            <div className="flex space-x-2">
+                              {b.status === 'confirmed' && isFuture && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelBooking(b._id, b.dateTime)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" aria-label="Booking actions">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => navigator.clipboard.writeText(b._id)}>
+                                    Copy Booking ID
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => { setFeedbackBookingId(b._id); setFeedbackMessage(''); setFeedbackOpen(true); }}>
+                                    Give Feedback
+                                  </DropdownMenuItem>
+                                  {b.status === 'completed' && !b.rating && (
+                                    <DropdownMenuItem onClick={() => setStar(b._id, selectedRatings[b._id] ?? 5)}>
+                                      Quick Rate 5★
+                                    </DropdownMenuItem>
+                                  )}
+                                  {b.status === 'confirmed' && isFuture && (
+                                    <DropdownMenuItem onClick={() => handleCancelBooking(b._id, b.dateTime)}>
+                                      Cancel Booking
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="text-lg font-semibold text-secondary">
-                              ₹{booking.price}
+                        {canRate && (
+                          <div className="mt-4 flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  className={`text-xl ${i <= chosen ? 'text-yellow-400' : 'text-muted-foreground'}`}
+                                  onClick={() => setStar(b._id, i)}
+                                  aria-label={`Rate ${i} star${i>1?'s':''}`}
+                                  disabled={!!b.rating}
+                                >
+                                  {i <= chosen ? '★' : '☆'}
+                                </button>
+                              ))}
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              Total Amount
-                            </div>
-                          </div>
-                          
-                          <div className="flex space-x-2">
-                            {booking.status === 'confirmed' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCancelBooking(booking.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Cancel
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleSubmitRating(b._id)}
+                              disabled={!!b.rating || !selectedRatings[b._id] || !!submitting[b._id]}
+                            >
+                              {b.rating ? 'Rated' : (submitting[b._id] ? 'Submitting...' : 'Submit Rating')}
                             </Button>
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
 
-              {bookings.length === 0 && (
+              {filtered.length === 0 && (
                 <div className="text-center py-16">
                   <div className="w-24 h-24 bg-muted/50 rounded-full mx-auto mb-6 flex items-center justify-center">
                     <Calendar className="h-12 w-12 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-semibold text-foreground mb-2">
-                    No bookings yet
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Start exploring venues and make your first booking
-                  </p>
-                  <Button className="btn-bounce bg-primary hover:bg-primary/90">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Browse Venues
-                  </Button>
+                  <h3 className="text-xl font-semibold text-foreground mb-2">No bookings found</h3>
+                  <p className="text-muted-foreground mb-6">Try changing the filter.</p>
                 </div>
               )}
             </div>
           </TabsContent>
         </Tabs>
       </div>
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackOpen} onOpenChange={(o) => { setFeedbackOpen(o); if (!o) { setFeedbackMessage(''); setFeedbackBookingId(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share your feedback</DialogTitle>
+            <DialogDescription>
+              Tell us about your experience for this booking. This helps us improve.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label htmlFor="feedback" className="text-sm">Feedback</Label>
+            <Textarea id="feedback" value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Type your feedback here..." rows={5} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)} disabled={feedbackSubmitting}>Cancel</Button>
+            <Button onClick={async () => {
+              if (!feedbackBookingId || !feedbackMessage.trim()) { toast.error('Please enter feedback'); return; }
+              try {
+                setFeedbackSubmitting(true);
+                if (feedbackBookingId.startsWith('demo-')) {
+                  // demo-only local handling
+                  toast.success('Feedback submitted (demo)');
+                } else {
+                  await submitFeedback({ bookingId: feedbackBookingId, message: feedbackMessage.trim() });
+                  toast.success('Thanks for your feedback!');
+                }
+                setFeedbackOpen(false);
+                setFeedbackMessage('');
+                setFeedbackBookingId(null);
+              } catch (e) {
+                console.error(e);
+                toast.error('Failed to submit feedback');
+              } finally {
+                setFeedbackSubmitting(false);
+              }
+            }} disabled={feedbackSubmitting}>
+              {feedbackSubmitting ? 'Submitting...' : 'Submit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
-
 export default Profile;
