@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <rect x="24" y="24" width="464" height="464" fill="none" stroke="#111827" stroke-width="8"/>
+  <!-- Simple QR-like placeholder pattern -->
+  <rect x="48" y="48" width="96" height="96" fill="#111827"/>
+  <rect x="368" y="48" width="96" height="96" fill="#111827"/>
+  <rect x="48" y="368" width="96" height="96" fill="#111827"/>
+  <rect x="200" y="200" width="24" height="24" fill="#111827"/>
+  <rect x="240" y="200" width="24" height="24" fill="#111827"/>
+  <rect x="280" y="200" width="24" height="24" fill="#111827"/>
+  <rect x="200" y="240" width="24" height="24" fill="#111827"/>
+  <rect x="280" y="240" width="24" height="24" fill="#111827"/>
+  <rect x="200" y="280" width="24" height="24" fill="#111827"/>
+  <rect x="240" y="280" width="24" height="24" fill="#111827"/>
+  <rect x="280" y="280" width="24" height="24" fill="#111827"/>
+  <text x="50%" y="95%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#6b7280">Placeholder QR • Replace with real PNG</text>
+</svg>
