@@ -32,7 +32,7 @@ const VenueDetails = () => {
   const [computingDeals, setComputingDeals] = useState(false);
   const firstCourt = useMemo(() => (venue?.courts || [])[0] || null, [venue]);
   const basePrice = useMemo(() => {
-    const prices = (venue?.courts || []).map((c: any) => Number(c.pricePerHour || 0)).filter((n: number) => n > 0);
+    const prices = (venue?.courts || []).map((c: Court) => Number(c.pricePerHour || 0)).filter((n: number) => n > 0);
     return prices.length ? Math.min(...prices) : 500;
   }, [venue]);
 

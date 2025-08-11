@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { predictPrice, PredictPriceResponse } from '@/lib/api';
+import { predictPriceBatch } from '@/lib/api';
 
 type Props = {
   venueId: string;
@@ -13,7 +13,7 @@ type Cell = {
   iso: string;
   hour: number;
   dayLabel: string;
-  data?: PredictPriceResponse;
+  data?: { suggestedPrice: number; rushScore: number };
 };
 
 const HOURS = Array.from({ length: 17 }, (_ , i) => i + 6); // 6..22
@@ -63,33 +63,31 @@ export function RushHeatmap({ venueId, courtId, basePrice, outdoor }: Props) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      const grid: Cell[][] = [];
-      for (const h of HOURS) {
-        const rowPromises = days.map(async (d) => {
+      try {
+        setLoading(true);
+        // Build all items and fetch in one batch
+        const items = days.flatMap((d) => HOURS.map((h) => {
           const dt = new Date(d);
           dt.setHours(h, 0, 0, 0);
-          const iso = dt.toISOString();
-          try {
-            const data = await predictPrice({
-              venueId,
-              courtId,
-              dateTime: iso,
-              basePrice,
-              durationHours: 1,
-              outdoor: !!outdoor,
-            });
-            return { iso, hour: h, dayLabel: fmtDay(dt), data } as Cell;
-          } catch {
-            return { iso, hour: h, dayLabel: fmtDay(dt) } as Cell;
-          }
+          return { dateTime: dt.toISOString(), basePrice, durationHours: 1 };
+        }));
+        const res = await predictPriceBatch({ venueId, courtId, items, benchmarkPrice: basePrice, outdoor });
+        const byIso = new Map(res.items.map(it => [it.dateTime, it] as const));
+        const grid: Cell[][] = days.map((d) => {
+          return HOURS.map((h) => {
+            const dt = new Date(d);
+            dt.setHours(h, 0, 0, 0);
+            const iso = dt.toISOString();
+            const data = byIso.get(iso);
+            return { iso, hour: h, dayLabel: fmtDay(dt), data: data ? { suggestedPrice: data.suggestedPrice, rushScore: data.rushScore } : undefined };
+          });
         });
-        const row = await Promise.all(rowPromises);
-        if (cancelled) return;
-        grid.push(row);
+        if (!cancelled) setCells(grid);
+        if (!cancelled) setLoading(false);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setLoading(false);
       }
-      if (!cancelled) setCells(grid);
-      if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [venueId, courtId, basePrice, outdoor, days]);
