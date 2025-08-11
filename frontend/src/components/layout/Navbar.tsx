@@ -24,12 +24,7 @@ export const Navbar = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/venues', label: 'Venues', icon: MapPin },
-    ...(user
-      ? [
-          { path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard },
-          ...(user.role === 'user' ? [{ path: '/bookings', label: 'My Bookings', icon: Calendar }] : []),
-        ]
-      : []),
+    ...(user ? [{ path: dashboardPath, label: 'Dashboard', icon: LayoutDashboard }] : []),
   ];
 
   return (
