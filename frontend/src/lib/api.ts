@@ -1,10 +1,11 @@
 // Lightweight API client for frontend -> backend calls
-export const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+export const API_URL = (import.meta as ImportMeta).env?.VITE_API_URL || 'http://localhost:4000';
 
 function getToken() {
   try {
     return localStorage.getItem('quickcourt_token') || '';
-  } catch {
+  } catch (_e) {
+    // ignore access errors (SSR or blocked storage)
     return '';
   }
 }
@@ -27,7 +28,9 @@ export async function apiFetch(path: string, init?: RequestInit) {
     try {
       const err = await res.json();
       message = typeof err?.error === 'string' ? err.error : message;
-    } catch { }
+    } catch (_e) {
+      // ignore JSON parse error
+    }
     throw new Error(message);
   }
   return res.json();
