@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import FriendlyAvatar from '@/assets/friendly-avatar.svg';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { Navigate } from 'react-router-dom';
@@ -254,10 +255,12 @@ export const Profile = () => {
               <CardHeader>
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16 ring-2 ring-primary/20">
+                    <AvatarImage src={user.avatar || (FriendlyAvatar as unknown as string)} alt={user.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
                       {user.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
+
                   <div className="flex-1">
                     <CardTitle className="text-xl text-foreground">
                       {user.name}

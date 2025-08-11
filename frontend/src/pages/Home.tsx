@@ -29,6 +29,7 @@ import { getPopularSports, type PopularSport, getFeaturedVenues, type VenueSumma
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CardHeader, CardTitle } from '@/components/ui/card';
+import Footer from '@/components/layout/Footer';
 
 export const Home = () => {
   const [popularSports, setPopularSports] = useState<PopularSport[]>([]);
@@ -684,6 +685,9 @@ export const Home = () => {
           </Card>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
