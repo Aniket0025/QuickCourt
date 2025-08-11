@@ -64,6 +64,28 @@ export async function listVenues() {
   return apiFetch('/api/venues', { method: 'GET' });
 }
 
+export async function listMyVenues() {
+  return apiFetch('/api/venues/mine', { method: 'GET' });
+}
+
+export async function getVenue(id: string) {
+  return apiFetch(`/api/venues/${id}`, { method: 'GET' });
+}
+
+export async function createCourt(venueId: string, payload: { name: string; sport: string; pricePerHour: number; operatingHours: string; }) {
+  return apiFetch(`/api/venues/${venueId}/courts`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function addCourtSlots(venueId: string, courtId: string, slots: string[]) {
+  return apiFetch(`/api/venues/${venueId}/courts/${courtId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify({ slots }),
+  });
+}
+
 // Admin APIs
 export type AdminMetrics = {
   totalUsers: number;
