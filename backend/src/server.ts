@@ -28,22 +28,25 @@ async function bootstrap() {
     console.log(`API listening on http://localhost:${PORT}`);
   });
 
-  // Auto-complete past bookings every 5 minutes
-  const FIVE_MINUTES = 5 * 60 * 1000;
+  // Auto-complete past bookings every 1 minute
+  const ONE_MINUTE = 60 * 1000;
   async function runAutoComplete() {
     try {
-      const now = Date.now();
-      // Find a reasonable batch of confirmed bookings whose end time has passed
-      const candidates = await BookingModel.find({ status: 'confirmed' }).limit(500).lean();
-      const toCompleteIds: string[] = [];
-      for (const b of candidates as any[]) {
-        const start = new Date(b.dateTime).getTime();
-        const end = start + (Number(b.durationHours || 1) * 60 * 60 * 1000);
-        if (end <= now) toCompleteIds.push(String(b._id));
-      }
-      if (toCompleteIds.length > 0) {
-        await BookingModel.updateMany({ _id: { $in: toCompleteIds } }, { $set: { status: 'completed' } });
-        console.log(`[auto-complete] Marked ${toCompleteIds.length} bookings as completed`);
+      // Mark confirmed bookings whose end time (dateTime + durationHours hours) is in the past
+      const result = await BookingModel.updateMany(
+        {
+          status: 'confirmed',
+          $expr: {
+            $lte: [
+              { $add: [ '$dateTime', { $multiply: [ '$durationHours', 60 * 60 * 1000 ] } ] },
+              new Date()
+            ]
+          }
+        },
+        { $set: { status: 'completed' } }
+      );
+      if ((result as any)?.modifiedCount) {
+        console.log(`[auto-complete] Marked ${(result as any).modifiedCount} bookings as completed`);
       }
     } catch (e) {
       console.error('[auto-complete] error', e);
@@ -51,7 +54,7 @@ async function bootstrap() {
   }
   // initial delay then interval
   setTimeout(runAutoComplete, 10_000);
-  setInterval(runAutoComplete, FIVE_MINUTES);
+  setInterval(runAutoComplete, ONE_MINUTE);
 }
 
 bootstrap().catch((err) => {

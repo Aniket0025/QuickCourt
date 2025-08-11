@@ -242,6 +242,51 @@
     box-shadow: var(--shadow-elevated);
   }
 
+  /* Elegant hover effect for cards: subtle scale, depth, and border glow */
+  .hover-card {
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: var(--radius);
+    transition:
+      transform 280ms cubic-bezier(.2,.8,.2,1),
+      box-shadow 280ms cubic-bezier(.2,.8,.2,1),
+      border-color 280ms cubic-bezier(.2,.8,.2,1),
+      filter 280ms cubic-bezier(.2,.8,.2,1);
+    will-change: transform, box-shadow;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .hover-card:hover {
+    transform: translateY(-2px) scale(1.015);
+    /* Depth + soft colored glow using ring color */
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.25),
+      0 4px 14px rgba(0, 0, 0, 0.12),
+      0 0 0 2px hsl(var(--ring) / 0.22),
+      0 10px 28px hsl(var(--ring) / 0.18);
+    border-color: hsl(var(--ring) / 0.55);
+    filter: saturate(1.03);
+  }
+
+  .hover-card:active {
+    transform: translateY(0) scale(0.997);
+    transition-duration: 140ms;
+  }
+
+  .hover-card:focus-visible {
+    outline: none;
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.25),
+      0 4px 14px rgba(0, 0, 0, 0.12),
+      0 0 0 3px hsl(var(--ring) / 0.35);
+    border-color: hsl(var(--ring) / 0.65);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hover-card { transition: none; }
+    .hover-card:hover, .hover-card:active { transform: none; }
+  }
+
   /* Button animations */
   .btn-bounce {
     transition: var(--transition-bounce);
