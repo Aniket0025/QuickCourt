@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface CommentDoc extends Document {
   name: string;
@@ -17,4 +17,7 @@ const CommentSchema = new Schema<CommentDoc>(
   { timestamps: true }
 );
 
-export const CommentModel = mongoose.models.Comment || mongoose.model<CommentDoc>('Comment', CommentSchema);
+// Explicit model typing avoids union overload issues in consumers
+export const CommentModel: Model<CommentDoc> =
+  (mongoose.models.Comment as Model<CommentDoc> | undefined) ||
+  mongoose.model<CommentDoc>('Comment', CommentSchema);
