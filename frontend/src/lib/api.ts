@@ -192,6 +192,8 @@ export async function getAdminRegistrations(params: { granularity?: 'day' | 'wee
   return apiFetch(`/api/admin/user-registrations?${q.toString()}`, { method: 'GET' });
 }
 
+
+
 // Owner metrics/stats
 export type OwnerMetrics = {
   activeCourts: number;
