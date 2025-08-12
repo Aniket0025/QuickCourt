@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import SplitText from '@/components/SplitText';
+import LightRays from '@/components/effects/LightRays';
 import { 
   Calendar, 
   MapPin, 
@@ -190,9 +191,28 @@ export default function Home() {
           style={{ backgroundImage: `url(${heroImage})` }}
         />
         {/* Base dark overlay with theme-aware opacity */}
-        <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
+        <div className="absolute inset-0 bg-black/25 dark:bg-black/45" />
         {/* Gradient + multiply layer to blend photo and UI, adds night realism */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-transparent dark:from-black/80 dark:via-black/60 dark:to-black/10 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-transparent dark:from-black/65 dark:via-black/45 dark:to-black/10 mix-blend-multiply" />
+        
+        {/* Dynamic Light Rays Effect */}
+        <div className="absolute inset-0 z-[2]">
+          <LightRays
+            raysOrigin="top-center"
+            raysColor="#34d399"
+            raysSpeed={1.2}
+            lightSpread={0.8}
+            rayLength={2.0}
+            followMouse={true}
+            mouseInfluence={0.15}
+            noiseAmount={0.08}
+            distortion={0.05}
+            fadeDistance={1.2}
+            saturation={1.0}
+            pulsating={false}
+            className="hero-light-rays"
+          />
+        </div>
 
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto">
           <div role="heading" aria-level={1} className="leading-tight">
