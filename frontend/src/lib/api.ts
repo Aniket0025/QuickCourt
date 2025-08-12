@@ -177,6 +177,21 @@ export async function getAdmin7dStats(): Promise<AdminStats7d> {
   return apiFetch('/api/admin/stats-7d', { method: 'GET' });
 }
 
+// Flexible user registrations series
+export type AdminRegistrationsSeries = {
+  labels: string[];
+  counts: number[];
+  granularity: 'day' | 'week' | 'month' | 'year';
+  limit: number;
+};
+
+export async function getAdminRegistrations(params: { granularity?: 'day' | 'week' | 'month' | 'year'; limit?: number } = {}): Promise<AdminRegistrationsSeries> {
+  const q = new URLSearchParams();
+  if (params.granularity) q.set('granularity', params.granularity);
+  if (params.limit) q.set('limit', String(params.limit));
+  return apiFetch(`/api/admin/user-registrations?${q.toString()}`, { method: 'GET' });
+}
+
 // Owner metrics/stats
 export type OwnerMetrics = {
   activeCourts: number;

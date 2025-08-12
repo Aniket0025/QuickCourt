@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireAdmin } from '../middleware/auth';
-import { getAdminMetrics, getAdmin7dStats } from '../controllers/adminController';
+import { getAdminMetrics, getAdmin7dStats, getAdminRegistrations } from '../controllers/adminController';
 import { VenueModel } from '../models/Venue';
 import { isValidObjectId } from 'mongoose';
 
@@ -11,6 +11,9 @@ router.get('/metrics', requireAuth, requireAdmin, getAdminMetrics);
 
 // GET /api/admin/stats-7d
 router.get('/stats-7d', requireAuth, requireAdmin, getAdmin7dStats);
+
+// GET /api/admin/user-registrations
+router.get('/user-registrations', requireAuth, requireAdmin, getAdminRegistrations);
 
 // List pending facilities awaiting approval
 router.get('/pending-venues', requireAuth, requireAdmin, async (_req, res) => {
