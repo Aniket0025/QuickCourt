@@ -28,7 +28,11 @@ router.post('/', async (req, res) => {
 // GET /api/comments - list latest comments (newest first)
 router.get('/', async (_req, res) => {
   try {
-    const docs = await CommentModel.find({}).sort({ createdAt: -1 }).limit(50).lean().exec();
+    // Simpler chain avoids union overload issues in Mongoose typings
+    const docs = await CommentModel.find({})
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
     return res.json({ data: docs });
   } catch (e) {
     console.error('Failed to list comments', e);

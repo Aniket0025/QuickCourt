@@ -1,0 +1,50 @@
+services:
+  - name: quickcourt-backend
+    type: web
+    env: node
+    rootDir: backend
+    plan: free
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    autoDeploy: true
+    healthCheckPath: "/api/health"
+    envVars:
+      - key: MONGO_URI
+        sync: false  # fill in on Render dashboard
+      - key: JWT_SECRET
+        sync: false  # fill in on Render dashboard
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "465"
+      - key: EMAIL_USER
+        sync: false  # fill in on Render dashboard
+      - key: EMAIL_PASS
+        sync: false  # fill in on Render dashboard
+      - key: USE_ML_MODEL
+        value: "true"
+      - key: MODEL_PATH
+        value: backend/models/rush.onnx
+      - key: CORS_ORIGIN
+        fromService:
+          type: static_site
+          name: quickcourt-frontend
+          property: url
+
+  - name: quickcourt-frontend
+    type: static_site
+    rootDir: frontend
+    plan: free
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: quickcourt-backend
+          property: url
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false  # fill in on Render dashboard, restrict by domain
+      - key: VITE_HEATMAP_DEMO
+        value: "false"

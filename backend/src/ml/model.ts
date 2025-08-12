@@ -35,7 +35,7 @@ export async function ensureModelLoaded(modelPath: string): Promise<boolean> {
       inputName = typeof nm === 'string' ? nm : String(nm ?? 'input');
     } else if (session.inputMetadata && typeof session.inputMetadata === 'object') {
       const keys = Object.keys(session.inputMetadata);
-      inputName = keys.length ? keys[0] : 'input';
+      inputName = keys.length && keys[0] ? String(keys[0]) : 'input';
     } else {
       inputName = 'input';
     }
@@ -45,7 +45,7 @@ export async function ensureModelLoaded(modelPath: string): Promise<boolean> {
       if (!outputName) outputName = null;
     } else if (session.outputMetadata && typeof session.outputMetadata === 'object') {
       const keys = Object.keys(session.outputMetadata);
-      outputName = keys.length ? keys[0] : null;
+      outputName = keys.length && keys[0] ? String(keys[0]) : null;
     } else {
       outputName = null;
     }
@@ -62,16 +62,21 @@ export async function predictBatch(features: Float32Array[]): Promise<number[] |
   if (!ort || !session || !inputName) return null;
   if (!features.length) return [];
   const rows = features.length;
-  const cols = features[0].length;
+  const first = features[0];
+  const cols = first ? first.length : 0;
+  if (cols <= 0) return [];
   const data = new Float32Array(rows * cols);
-  for (let r = 0; r < rows; r++) data.set(features[r], r * cols);
+  for (let r = 0; r < rows; r++) {
+    const vec = features[r] ?? new Float32Array(cols);
+    data.set(vec, r * cols);
+  }
   const tensor = new ort.Tensor('float32', data, [rows, cols]);
   const feeds: any = { [inputName as string]: tensor };
   const out = await session.run(feeds);
   // choose a safe output name
   const outName = outputName || Object.keys(out)[0];
   const outTensor = outName ? out[outName] : undefined;
-  const arr: Float32Array | number[] = outTensor && outTensor.data ? outTensor.data : new Float32Array(rows);
+  const arr: Float32Array | number[] = (outTensor && outTensor.data ? outTensor.data : undefined) ?? new Float32Array(rows);
   // squeeze to 1D
   const result: number[] = [];
   const step = Math.floor((arr.length) / rows) || 1;
