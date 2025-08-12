@@ -30,6 +30,8 @@ import Terms from "./pages/Terms";
 import Features from "./pages/Features";
 import ChatWidget from "@/components/chat/ChatWidget";
 import PaymentSim from "./pages/PaymentSim";
+import Blogs from "./pages/blog/Blogs";
+import BlogDetails from "./pages/blog/BlogDetails";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/features" element={<Features />} />
+                <Route path="/blogs" element={<Blogs />} />
+                <Route path="/blogs/:slug" element={<BlogDetails />} />
                 <Route path="/dashboard/admin" element={<AdminDashboard />} />
                 <Route path="/admin/facility-approval" element={<FacilityApproval />} />
                 <Route path="/admin/users" element={<UserManagement />} />
