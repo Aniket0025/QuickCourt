@@ -77,25 +77,33 @@ export const Profile = () => {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState<number | null>(null);
 
-  const now = new Date();
+  // Ticking clock to drive time-based UI (e.g., cancel window, status changes)
+  const [now, setNow] = useState(new Date());
   const filtered = useMemo(
     () => bookings.filter((b) => (filter === 'all' ? true : b.status === filter)),
     [bookings, filter]
   );
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       if (!user) return;
       try {
         const res = await listBookings({ userId: user.id });
         const data = (res.data || []) as BookingItem[];
-        setBookings(data);
+        if (!cancelled) setBookings(data);
       } catch (e) {
         console.error(e);
         // On error, keep current state; UI will reflect empty or last known
       }
     }
+    // initial fetch
     load();
+    // tick 'now' every 30s so UI updates time-based conditions
+    const tick = setInterval(() => { if (!cancelled) setNow(new Date()); }, 30_000);
+    // refresh bookings every 60s so backend auto-completions reflect in UI
+    const poll = setInterval(() => { if (!cancelled) load(); }, 60_000);
+    return () => { cancelled = true; clearInterval(tick); clearInterval(poll); };
   }, [user]);
 
   if (!user) {
@@ -110,8 +118,10 @@ export const Profile = () => {
     }, 1000);
   };
 
-  const handleCancelBooking = async (bookingId: string, dateTime: string) => {
-    if (new Date(dateTime) <= now) return;
+  const handleCancelBooking = async (bookingId: string, dateTime: string, durationHours?: number) => {
+    // Allow cancel until session end + 15 minutes grace
+    const endWithGrace = new Date(dateTime).getTime() + (durationHours ?? 1) * 3_600_000 + 15 * 60_000;
+    if (endWithGrace <= now.getTime()) return;
     try {
       await cancelBookingApi(bookingId);
       const res = await listBookings({ userId: user.id });
@@ -155,7 +165,7 @@ export const Profile = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'secondary' | 'info' | 'destructive' | 'warning' => {
     switch (status) {
       case 'confirmed':
         return 'secondary';
