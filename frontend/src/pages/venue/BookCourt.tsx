@@ -292,7 +292,7 @@ const BookCourt = () => {
                     <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1,2,3].map(h => (
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map(h => (
                       <SelectItem key={h} value={String(h)}>{h} hour{h>1?'s':''}</SelectItem>
                     ))}
                   </SelectContent>
