@@ -2,6 +2,25 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import L, { DivIcon, Map as LeafletMap, LayerGroup } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Fix Leaflet marker asset URLs for Vite bundling
+// Ensures CSS url() references are resolvable in dev/build on Windows
+// even if we primarily use DivIcons.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - image imports are handled by Vite bundler
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x as unknown as string,
+  iconUrl: markerIcon as unknown as string,
+  shadowUrl: markerShadow as unknown as string,
+});
+
 export type MapVenue = {
   id: string;
   name: string;
