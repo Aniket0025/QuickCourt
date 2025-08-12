@@ -8,6 +8,7 @@ import FriendlyAvatar from '@/assets/friendly-avatar.svg';
 import { useAuth } from '@/lib/auth';
 import { Menu, User, LogOut, Calendar, MapPin, Home, LayoutDashboard, Info } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 
 import logoUrl from '@/assets/logo.png';
 
@@ -78,6 +79,7 @@ export const Navbar = () => {
 
           {/* Theme + User Menu / Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
+            <LanguageSwitcher />
             <ThemeToggle />
             {user ? (
               <div className="flex items-center space-x-3">
@@ -130,8 +132,9 @@ export const Navbar = () => {
             </SheetTrigger>
             <SheetContent side="right" className="w-72 bg-card border-border">
               <div className="flex flex-col space-y-4 mt-6">
-                <div className="px-4">
+                <div className="px-4 flex items-center justify-between">
                   <ThemeToggle />
+                  <LanguageSwitcher />
                 </div>
                 {navItems.map(({ path, label, icon: Icon }) => (
                   <Link

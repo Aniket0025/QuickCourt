@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Google Translate Top Bar */
+.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
+
 /* QuickCourt Design System - Sports booking platform with gaming/tech aesthetic */
 
 @layer base {
