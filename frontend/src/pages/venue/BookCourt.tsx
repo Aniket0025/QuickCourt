@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,16 +6,34 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { createBooking, getVenue } from '@/lib/api';
+import { getVenue } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+
+type Hours = { startHour: number; startMinute?: number; endHour: number; endMinute?: number };
+type Court = {
+  _id: string;
+  name: string;
+  sport: string;
+  pricePerHour?: number;
+  operatingHours?: string;
+  availableSlots?: string[];
+};
+type Venue = {
+  _id: string;
+  name: string;
+  address?: string;
+  sports?: string[];
+  amenities?: string[];
+  courts: Court[];
+};
 
 const BookCourt = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [venue, setVenue] = useState<any | null>(null);
+  const [venue, setVenue] = useState<Venue | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [courtId, setCourtId] = useState<string>('');
@@ -35,11 +53,12 @@ const BookCourt = () => {
       try {
         setLoading(true);
         const res = await getVenue(id);
-        const data = (res as any)?.data;
+        const data = (res as unknown as { data?: unknown })?.data as Venue | undefined;
         if (!mounted) return;
-        setVenue(data || null);
-      } catch (e: any) {
-        toast.error(e?.message || 'Failed to load venue');
+        setVenue(data ?? null);
+      } catch (e: unknown) {
+        const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: string }).message) : 'Failed to load venue';
+        toast.error(msg);
         if (mounted) setVenue(null);
       } finally {
         if (mounted) setLoading(false);
@@ -48,7 +67,7 @@ const BookCourt = () => {
     return () => { mounted = false; };
   }, [id]);
 
-  const selectedCourt = useMemo(() => venue?.courts.find((c: any) => c._id === courtId), [venue, courtId]);
+  const selectedCourt = useMemo(() => venue?.courts.find((c: Court) => c._id === courtId), [venue, courtId]);
 
   const todayLocalDate = useMemo(() => {
     const now = new Date();
@@ -59,8 +78,8 @@ const BookCourt = () => {
   }, []);
 
   // Helper: parse operating hours like "06:00-22:00"
-  const parseOperatingHours = (s?: string) => {
-    const def = { startHour: 6, endHour: 22 };
+  const parseOperatingHours = (s?: string): Hours => {
+    const def: Hours = { startHour: 6, endHour: 22 };
     if (!s || typeof s !== 'string') return def;
     const m = s.match(/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
     if (!m) return def;
@@ -68,13 +87,13 @@ const BookCourt = () => {
     const sm = Math.min(59, Math.max(0, Number(m[2])));
     const eh = Math.min(23, Math.max(0, Number(m[3])));
     const em = Math.min(59, Math.max(0, Number(m[4])));
-    return { startHour: sh, startMinute: sm, endHour: eh, endMinute: em } as any;
+    return { startHour: sh, startMinute: sm, endHour: eh, endMinute: em };
   };
 
   // Generate fallback hourly slots for selected date within operating hours
-  const generateDaySlots = (dateStr: string, intervalMin = 60): string[] => {
+  const generateDaySlots = useCallback((dateStr: string, intervalMin = 60): string[] => {
     if (!dateStr) return [];
-    const { startHour = 6, startMinute = 0, endHour = 22, endMinute = 0 } = parseOperatingHours(selectedCourt?.operatingHours) as any;
+    const { startHour = 6, startMinute = 0, endHour = 22, endMinute = 0 } = parseOperatingHours(selectedCourt?.operatingHours);
     const day = new Date(dateStr + 'T00:00:00');
     const slots: string[] = [];
     const start = new Date(day);
@@ -91,7 +110,7 @@ const BookCourt = () => {
       }
     }
     return slots;
-  };
+  }, [selectedCourt?.operatingHours, duration]);
 
   // Filter slots by selected date and ensure only future times are selectable. If none present, fallback-generate.
   const filteredSlots = useMemo(() => {
@@ -114,7 +133,7 @@ const BookCourt = () => {
     // Union, then sort ascending
     const set = new Set<string>([...seeded, ...fallback]);
     return Array.from(set).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-  }, [selectedCourt, selectedDate, duration]);
+  }, [selectedCourt, selectedDate, duration, generateDaySlots]);
   const total = useMemo(() => selectedCourt ? (selectedCourt.pricePerHour || 0) * duration : 0, [selectedCourt, duration]);
 
   // Build a custom slot from hour/minute/AM-PM for selected date when those change
@@ -135,9 +154,9 @@ const BookCourt = () => {
     candidate.setHours(h24, mm, 0, 0);
 
     // Validate future and within operating hours window
-    const { startHour = 6, startMinute = 0, endHour = 22, endMinute = 0 } = parseOperatingHours(selectedCourt?.operatingHours) as any;
-    const winStart = new Date(base); winStart.setHours(startHour, (startMinute as number) || 0, 0, 0);
-    const winEnd = new Date(base); winEnd.setHours(endHour, (endMinute as number) || 0, 0, 0);
+    const { startHour, startMinute, endHour, endMinute } = parseOperatingHours(selectedCourt.operatingHours);
+    const winStart = new Date(base); winStart.setHours(startHour, startMinute, 0, 0);
+    const winEnd = new Date(base); winEnd.setHours(endHour, endMinute, 0, 0);
     const now = new Date();
     const candidateEnd = new Date(candidate.getTime() + duration * 60 * 60 * 1000);
 
@@ -168,29 +187,15 @@ const BookCourt = () => {
       toast.error('Please select court and time slot');
       return;
     }
-    // final guard: slot must be in the future
-    if (new Date(slot).getTime() < Date.now()) {
-      toast.error('Selected time must be in the future');
-      return;
-    }
-
-    try {
-      // Simulate payment delay
-      await new Promise(r => setTimeout(r, 800));
-
-      await createBooking({
-        userId: user!.id,
+    // Go to payment simulation with booking details. Actual booking creation happens there.
+    navigate('/payment', {
+      state: {
         venueId: venue._id,
         courtId: selectedCourt._id,
         dateTime: slot,
         durationHours: duration,
-      });
-
-      toast.success('Booking confirmed!');
-      navigate('/bookings');
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to create booking');
-    }
+      },
+    });
   };
 
   return (
@@ -232,7 +237,7 @@ const BookCourt = () => {
                     <SelectValue placeholder="Select a court" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(venue?.courts || []).map((c: any) => (
+                    {(venue?.courts || []).map((c: Court) => (
                       <SelectItem key={c._id} value={c._id}>{c.name} · {c.sport} · ₹{Number(c.pricePerHour||0)}/hr</SelectItem>
                     ))}
                   </SelectContent>

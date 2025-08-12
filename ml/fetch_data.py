@@ -73,20 +73,89 @@ def build_features(dt: datetime, venue_id: str, court_id: str, base_price: float
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--rows', type=int, default=50000)
-    parser.add_argument('--out', type=str, default='data/train.csv')
+    parser.add_argument('--rows', type=int, default=50000, help='Total target rows when only synthetic is used')
+    parser.add_argument('--out', type=str, default='data/train.csv', help='Output CSV path')
+    parser.add_argument('--real_csv', type=str, default='', help='Optional path to real bookings CSV to learn from')
+    parser.add_argument('--synthetic_rows', type=int, default=-1, help='If real_csv provided, number of synthetic rows to add. Default auto-top-up to ~50k total.')
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
     now = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
     start = now - timedelta(days=60)
 
+    records = []
+
+    # 1) Load REAL bookings if provided. We weak-label using the same heuristic label_rush.
+    real_count = 0
+    if args.real_csv and os.path.exists(args.real_csv):
+        real_df = pd.read_csv(args.real_csv)
+        # try to be schema-tolerant
+        # expected fields: dateTime, venueId, courtId, price or basePrice, outdoor
+        def coalesce(cols):
+            for c in cols:
+                if c in real_df.columns:
+                    return c
+            return None
+
+        c_dt = coalesce(['dateTime','datetime','start','startTime'])
+        c_venue = coalesce(['venueId','venue_id','venue'])
+        c_court = coalesce(['courtId','court_id','court'])
+        c_price = coalesce(['basePrice','price','amount'])
+        c_outdoor = coalesce(['outdoor','isOutdoor'])
+
+        if not all([c_dt, c_venue, c_court, c_price]):
+            print('real_csv missing required columns; skipping real ingestion')
+        else:
+            # compute benchmark per venue median price when possible
+            vbench = None
+            try:
+                vbench = real_df.groupby(c_venue)[c_price].median().to_dict()
+            except Exception:
+                vbench = None
+
+            for _, row in real_df.iterrows():
+                try:
+                    # parse datetime robustly
+                    dt_raw = row[c_dt]
+                    if isinstance(dt_raw, (int, float)):
+                        # epoch seconds or ms heuristic
+                        val = float(dt_raw)
+                        if val > 1e12:
+                            dt = datetime.utcfromtimestamp(val/1000)
+                        else:
+                            dt = datetime.utcfromtimestamp(val)
+                    else:
+                        dt = datetime.fromisoformat(str(dt_raw).replace('Z','+00:00'))
+                    dt = dt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+
+                    venue_id = str(row[c_venue])
+                    court_id = str(row[c_court])
+                    base_price = float(row[c_price]) if not pd.isna(row[c_price]) else 600.0
+                    bench = float(vbench.get(venue_id, base_price)) if vbench else base_price
+                    outdoor = bool(row[c_outdoor]) if c_outdoor and c_outdoor in row and not pd.isna(row[c_outdoor]) else False
+
+                    y = label_rush(dt, venue_id, court_id, base_price, bench, outdoor)
+                    x = build_features(dt, venue_id, court_id, base_price, outdoor)
+                    records.append(x + [y])
+                    real_count += 1
+                except Exception:
+                    continue
+
+    # 2) Add SYNTHETIC rows either to reach target or if no real provided.
+    target_total = 50000
+    synth_to_add = 0
+    if real_count > 0:
+        synth_to_add = args.synthetic_rows if args.synthetic_rows >= 0 else max(0, target_total - real_count)
+    else:
+        synth_to_add = args.rows
+
     venues = [f"v{i}" for i in range(15)]
     courts = [f"c{j}" for j in range(6)]
 
-    records = []
-    for _ in range(args.rows):
+    for _ in range(int(synth_to_add)):
         dt = start + timedelta(hours=random.randint(0, 60 * 24))
         venue_id = random.choice(venues)
         court_id = random.choice(courts)
@@ -101,7 +170,7 @@ def main():
     cols = ['hSin','hCos','dSin','dCos','vHash','cHash','price','outdoor','rush']
     df = pd.DataFrame(records, columns=cols)
     df.to_csv(args.out, index=False)
-    print(f"Wrote {len(df)} rows to {args.out}")
+    print(f"Wrote {len(df)} rows to {args.out} (real={real_count}, synthetic={len(df)-real_count})")
 
 
 if __name__ == '__main__':

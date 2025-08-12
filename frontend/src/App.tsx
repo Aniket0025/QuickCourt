@@ -17,6 +17,7 @@ import { HelmetProvider } from "react-helmet-async";
 import VenueDetails from "./pages/venue/VenueDetails";
 import BookCourt from "./pages/venue/BookCourt";
 import MyBookings from "./pages/bookings/MyBookings";
+import { Navigate } from 'react-router-dom';
 import FacilityManagement from "./pages/owner/FacilityManagement";
 import CourtManagement from "./pages/owner/CourtManagement";
 import TimeSlotManagement from "./pages/owner/TimeSlotManagement";
@@ -28,6 +29,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Features from "./pages/Features";
 import ChatWidget from "@/components/chat/ChatWidget";
+import PaymentSim from "./pages/PaymentSim";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +50,8 @@ const App = () => (
                 <Route path="/venues/:id" element={<VenueDetails />} />
                 <Route path="/venues/:id/book" element={<BookCourt />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/bookings" element={<MyBookings />} />
+                <Route path="/bookings" element={<Navigate to="/profile?tab=bookings" replace />} />
+                <Route path="/payment" element={<PaymentSim />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
