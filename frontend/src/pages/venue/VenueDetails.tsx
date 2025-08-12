@@ -10,8 +10,42 @@ import { RushHeatmap } from '@/components/venue/RushHeatmap';
 import { RevenueLab } from '@/components/venue/RevenueLab';
 import { FairSurgeBanner } from '@/components/venue/FairSurgeBanner';
 import OSMMap from '@/components/map/OSMMap';
+import GoogleMapView from '@/components/map/GoogleMapView';
 import { geocodeNominatim, LatLng, fetchSportsPOIsOverpass, SportsPOI, getUserLocation } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
+
+import { useCallback } from 'react';
+
+const PopupCard = ({ venue, onClose }: { venue: any, onClose: () => void }) => (
+  <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full relative">
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+        aria-label="Close"
+      >
+        ×
+      </button>
+      <h2 className="text-xl font-bold mb-2">{venue.name}</h2>
+      <div className="text-sm text-muted-foreground mb-1">{venue.address}</div>
+      <div className="mb-2">
+        <strong>Courts:</strong> {venue.courts?.length || 0}
+      </div>
+      <div className="mb-2">
+        <strong>Pricing:</strong> ₹{venue.courts?.[0]?.pricePerHour || 'N/A'}/hr
+      </div>
+      <div className="mb-2">
+        <strong>Current Rush:</strong> {venue.rushScore != null ? `${Math.round(venue.rushScore * 100)}%` : 'N/A'}
+      </div>
+      <button
+        className="mt-3 w-full bg-primary text-white py-2 rounded hover:bg-primary/90"
+        onClick={() => window.location.assign(`/venues/${venue._id}/book`)}
+      >
+        Book Now
+      </button>
+    </div>
+  </div>
+);
 
 const VenueDetails = () => {
   type Court = { _id: string; name?: string; sport?: string; operatingHours?: string; pricePerHour?: number; outdoor?: boolean };
@@ -40,6 +74,7 @@ const VenueDetails = () => {
   const [coord, setCoord] = useState<LatLng | null>(null);
   const [pois, setPois] = useState<SportsPOI[]>([]);
   const [userLoc, setUserLoc] = useState<LatLng | null>(null);
+  const [popupVenue, setPopupVenue] = useState<any | null>(null);
   const firstCourt = useMemo(() => (venue?.courts || [])[0] || null, [venue]);
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
   const currentCourt = useMemo(() => {
@@ -103,6 +138,32 @@ const VenueDetails = () => {
       }
     })();
   }, [coord]);
+
+  // Venue marker click handler for real-time popup
+  const handleVenueMarkerClick = useCallback(async (venueId: string) => {
+    try {
+      setPopupVenue(null);
+      const res = await getVenue(venueId);
+      const data = (res as { data?: any } | null)?.data;
+      if (!data) return;
+      // Optionally fetch rush score
+      let rushScore: number | undefined = undefined;
+      try {
+        const now = new Date();
+        const rush = await predictRush({
+          venueId: data._id,
+          courtId: data.courts?.[0]?._id,
+          dateTime: now.toISOString(),
+          durationHours: 1,
+          outdoor: Boolean(data.courts?.[0]?.outdoor),
+        });
+        rushScore = rush.rushScore;
+      } catch {}
+      setPopupVenue({ ...data, rushScore });
+    } catch {
+      toast.error('Failed to load venue details');
+    }
+  }, []);
 
   // Try to show user's current location on the details map
   useEffect(() => {
@@ -303,6 +364,7 @@ const VenueDetails = () => {
                 <CardTitle>Location</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {/* OSMMap (OpenStreetMap) */}
                 <OSMMap
                   venues={[{
                     id: venue._id,
@@ -313,9 +375,34 @@ const VenueDetails = () => {
                     rush: undefined,
                   }]}
                   user={userLoc || undefined}
-                  height={260}
+                  height={220}
                   pois={pois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
+                  onNavigate={handleVenueMarkerClick}
                 />
+                {/* GoogleMapView (Google Maps) */}
+                <div className="mt-4">
+                  <GoogleMapView
+                    venues={[{
+                      id: venue._id,
+                      name: venue.name,
+                      lat: coord.lat,
+                      lng: coord.lng,
+                      price: basePrice,
+                      rush: undefined,
+                    }]}
+                    user={userLoc || undefined}
+                    center={coord}
+                    height={220}
+                    pois={pois.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, kind: p.kind }))}
+                    onNavigate={handleVenueMarkerClick}
+                  />
+                </div>
+                {popupVenue && (
+                  <PopupCard
+                    venue={popupVenue}
+                    onClose={() => setPopupVenue(null)}
+                  />
+                )}
                 {venue.address && (
                   <div className="text-sm text-muted-foreground flex items-center justify-between">
                     <span className="line-clamp-1">{venue.address}</span>
