@@ -32,6 +32,71 @@ export async function getAdminMetrics(_req: Request, res: Response) {
   }
 }
 
+// GET /api/admin/user-registrations?granularity=day|week|month|year&limit=365
+export async function getAdminRegistrations(req: Request, res: Response) {
+  try {
+    const granRaw = String(req.query.granularity || 'day');
+    const unit: 'day' | 'week' | 'month' | 'year' = ['day','week','month','year'].includes(granRaw) ? (granRaw as any) : 'day';
+    const defaultLimit = unit === 'day' ? 30 : unit === 'week' ? 26 : unit === 'month' ? 12 : 5;
+    const limit = Math.min(730, Math.max(1, Number(req.query.limit) || defaultLimit));
+
+    const now = new Date();
+    const truncateUtc = (d: Date) => {
+      if (unit === 'year') return new Date(Date.UTC(d.getUTCFullYear(), 0, 1, 0, 0, 0, 0));
+      if (unit === 'month') return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0));
+      if (unit === 'week') {
+        const day = (d.getUTCDay() + 6) % 7; // Monday start
+        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day, 0, 0, 0, 0));
+      }
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+    };
+    const step = (d: Date, n: number) => {
+      const x = new Date(d);
+      if (unit === 'day') x.setUTCDate(x.getUTCDate() + n);
+      else if (unit === 'week') x.setUTCDate(x.getUTCDate() + 7 * n);
+      else if (unit === 'month') x.setUTCMonth(x.getUTCMonth() + n);
+      else if (unit === 'year') x.setUTCFullYear(x.getUTCFullYear() + n);
+      return x;
+    };
+
+    const startBase = truncateUtc(now);
+    const start = step(startBase, -(limit - 1));
+
+    const usersAgg = await UserModel.aggregate([
+      { $match: { createdAt: { $gte: start } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: unit === 'year' ? '%Y' : unit === 'month' ? '%Y-%m' : '%Y-%m-%d',
+              date: { $dateTrunc: { date: '$createdAt', unit, timezone: 'UTC' } },
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const byKey = new Map<string, number>();
+    for (const it of usersAgg as any[]) byKey.set(it._id as string, it.count as number);
+
+    const labels: string[] = [];
+    const counts: number[] = [];
+    for (let i = 0; i < limit; i++) {
+      const d = step(start, i);
+      const key = unit === 'year' ? d.toISOString().slice(0, 4) : unit === 'month' ? d.toISOString().slice(0, 7) : d.toISOString().slice(0, 10);
+      labels.push(key);
+      counts.push(byKey.get(key) || 0);
+    }
+
+    return res.json({ labels, counts, granularity: unit, limit });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Failed to load user registrations' });
+  }
+}
+ 
 export async function getAdmin7dStats(_req: Request, res: Response) {
   try {
     // last 7 calendar days including today, using UTC boundaries

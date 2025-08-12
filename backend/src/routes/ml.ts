@@ -9,19 +9,19 @@ function clamp01(x: number) {
   return Math.max(0, Math.min(1, x));
 }
 
-function normalizeRushBatch(items: any[], pLo = 0.1, pHi = 0.9) {
+function normalizeRushBatch<T extends { rushScore: number | undefined }>(items: T[], pLo = 0.1, pHi = 0.9): T[] {
   if (!items || items.length < 3) return items;
-  const arr = items.map((x) => Number(x.rushScore ?? 0));
-  const sorted = [...arr].sort((a, b) => a - b);
+  const arr: number[] = items.map((x) => Number(x.rushScore ?? 0));
+  const sorted: number[] = [...arr].sort((a, b) => a - b);
   if (sorted.length < 2) return items;
   const idxLo = Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * pLo)));
   const idxHi = Math.max(0, Math.min(sorted.length - 1, Math.floor(sorted.length * pHi)));
-  const lo = Number.isFinite(sorted[idxLo]) ? sorted[idxLo] : sorted[0];
-  const hi = Number.isFinite(sorted[idxHi]) ? sorted[idxHi] : sorted[sorted.length - 1];
+  const lo: number = Number.isFinite(sorted[idxLo]) ? (sorted[idxLo] as number) : (sorted[0] as number);
+  const hi: number = Number.isFinite(sorted[idxHi]) ? (sorted[idxHi] as number) : (sorted[sorted.length - 1] as number);
   const span = Math.max(1e-6, hi - lo);
   return items.map((it) => {
     const v = Number(it.rushScore ?? 0);
-    return { ...it, rushScore: clamp01((v - lo) / span) };
+    return { ...it, rushScore: clamp01((v - lo) / span) } as T;
   });
 }
 
