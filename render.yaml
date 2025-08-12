@@ -29,8 +29,7 @@ services:
         fromService:
           type: web
           name: quickcourt-frontend
-          property: url
-
+          property: host
   - name: quickcourt-frontend
     type: web
     env: static
@@ -44,7 +43,7 @@ services:
         fromService:
           type: web
           name: quickcourt-backend
-          property: url
+          property: host
       - key: VITE_GOOGLE_MAPS_API_KEY
         sync: false
       - key: VITE_HEATMAP_DEMO
