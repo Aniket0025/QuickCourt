@@ -3,7 +3,7 @@ services:
     type: web
     env: node
     rootDir: backend
-    plan: free
+    plan: starter
     buildCommand: "npm install && npm run build"
     startCommand: "npm start"
     autoDeploy: true
@@ -27,16 +27,15 @@ services:
         value: backend/models/rush.onnx
       - key: CORS_ORIGIN
         fromService:
-          type: web
+          type: static_site
           name: quickcourt-frontend
           property: host
   - name: quickcourt-frontend
-    type: web
-    env: static
+    type: static_site
     rootDir: frontend
-    plan: free
+    plan: starter
     buildCommand: "npm install && npm run build"
-    startCommand: "serve -s dist"   # or another static server command
+    staticPublishPath: dist
     autoDeploy: true
     envVars:
       - key: VITE_API_URL
