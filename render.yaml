@@ -27,12 +27,12 @@ services:
         value: backend/models/rush.onnx
       - key: CORS_ORIGIN
         fromService:
-          type: static_site
+          type: static
           name: quickcourt-frontend
           property: url
 
   - name: quickcourt-frontend
-    type: static_site
+    type: static
     rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
