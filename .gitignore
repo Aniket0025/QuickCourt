@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 build/
 .out/
@@ -12,3 +12,6 @@ pnpm-*.log*
 Thumbs.db
 .vscode/
 .idea/
+ml/
+.qcvenv/
+.venv/

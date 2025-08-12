@@ -14,8 +14,8 @@ export default function BlogDetails() {
         </Helmet>
 
         <div className="mb-8">
-          <Link 
-            to="/blogs" 
+          <Link
+            to="/blogs"
             className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
           >
             ← Back to Blogs
@@ -56,11 +56,11 @@ export default function BlogDetails() {
                     </span>
                   )}
                 </div>
-                
+
                 <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white leading-tight">
                   {blog.title}
                 </h1>
-                
+
                 {blog.excerpt && (
                   <p className="text-xl text-gray-600 dark:text-gray-300 mb-6 italic leading-relaxed">
                     {blog.excerpt}
@@ -71,20 +71,20 @@ export default function BlogDetails() {
               {/* Cover Image */}
               {blog.coverUrl && (
                 <div className="px-8 mb-8">
-                  <img 
-                    src={blog.coverUrl} 
-                    alt={blog.title} 
-                    className="w-full h-64 md:h-80 object-cover rounded-lg shadow-md" 
+                  <img
+                    src={blog.coverUrl}
+                    alt={blog.title}
+                    className="w-full h-64 md:h-80 object-cover rounded-lg shadow-md"
                   />
                 </div>
               )}
-              
+
               {/* Content */}
               <div className="px-8 pb-8">
                 {blog.content ? (
-                  <div 
+                  <div
                     className="prose prose-lg prose-gray dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: blog.content }} 
+                    dangerouslySetInnerHTML={{ __html: blog.content }}
                   />
                 ) : (
                   <div className="text-center py-8">

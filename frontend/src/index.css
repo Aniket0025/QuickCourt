@@ -1,6 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Libertinus+Serif:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Hide Google Translate Top Bar */
+.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
 
 /* QuickCourt Design System - Sports booking platform with gaming/tech aesthetic */
 
@@ -137,7 +148,7 @@
   body {
     @apply bg-background text-foreground;
     background: var(--gradient-background);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Libertinus Serif', Georgia, 'Times New Roman', serif;
   }
 
   /* Custom scrollbar */
