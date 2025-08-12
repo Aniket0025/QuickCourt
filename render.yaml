@@ -27,11 +27,12 @@ services:
         value: backend/models/rush.onnx
       - key: CORS_ORIGIN
         fromService:
-          type: static_site
+          type: web # Changed from static_site to web
           name: quickcourt-frontend
           property: host
   - name: quickcourt-frontend
-    type: static_site
+    type: web # Changed from static_site to web
+    runtime: static # Added the runtime: static field
     rootDir: frontend
     plan: starter
     buildCommand: "npm install && npm run build"
@@ -43,7 +44,7 @@ services:
           type: web
           name: quickcourt-backend
           property: host
-      - key: VITE_GOOGLE_MAPS_API_KEY
+      - key: VITE_Maps_API_KEY
         sync: false
       - key: VITE_HEATMAP_DEMO
         value: "false"
